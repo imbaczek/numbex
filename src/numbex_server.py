@@ -3,6 +3,7 @@
 from optparse import OptionParser
 from datetime import datetime
 import time
+from cStringIO import StringIO
 # Import the ZSI stuff you'd need no matter what
 from ZSI.wstools import logging
 from ZSI.ServiceContainer import AsServer
@@ -19,7 +20,7 @@ class MyNumbexService(NumbexServiceService):
         # Call the generated base class method to get appropriate
         # input/output data structures
         request, response = NumbexServiceService.soap_getData(self, ps, **kw)
-        response._return = "foobar";
+        response._return = "foobar"
         return request, response
 
     def soap_getUpdates(self, ps, **kw):
@@ -32,7 +33,7 @@ class MyNumbexService(NumbexServiceService):
         request, response = NumbexServiceService.soap_receiveUpdates(self, ps, **kw)
         data = request._csv
         print data
-        respons._return = True
+        response._return = True
         return request, response
 
 def main():

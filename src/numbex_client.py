@@ -14,7 +14,6 @@ def pull_all():
 
     msg = getData()
     rsp = port.getData(msg)
-    print "INTEGER: ", rsp._return
 
 
 def pull(since):
@@ -24,7 +23,6 @@ def pull(since):
     msg = getUpdates()
     msg._parameter = datetime.now().timetuple()
     rsp = port.getUpdates(msg)
-    print "pull:", rsp._return
 
 
 def send(filename):
@@ -34,7 +32,7 @@ def send(filename):
     msg = receiveUpdates()
     data = file(filename).read()
     msg._csv = data
-    rsp = port.getUpdates(msg)
+    rsp = port.receiveUpdates(msg)
 
 def main():
     global _tracefile, _outfile
