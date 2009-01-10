@@ -42,7 +42,9 @@ receive updates:
 		-- s¹ identyczne jak w nowym, to nic nie rób
 
                 zakresy pokrywajace sie:
-                    a = sa, ka -- a = zakres; sa, ka -- start, koniec zakresu
+		    -- sa, ka -- start, koniec zakresu
+		    -- a -- zakres
+                    a = Zakres(sa, ka)
                     SELECT start, koniec
                     FROM zakresy
                     WHERE start BETWEEN sa AND ka
