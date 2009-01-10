@@ -1,3 +1,4 @@
 *~
-.pyc
-.class
+*.pyc
+*.class
+.*.swp
