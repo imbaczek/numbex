@@ -14,6 +14,7 @@ def pull_all():
 
     msg = getData()
     rsp = port.getData(msg)
+    _outfile.write(rsp._return)
 
 
 def pull(since):
@@ -23,6 +24,7 @@ def pull(since):
     msg = getUpdates()
     msg._parameter = datetime.now().timetuple()
     rsp = port.getUpdates(msg)
+    _outfile.write(rsp._return)
 
 
 def send(filename):
