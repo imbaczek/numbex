@@ -1,0 +1,16 @@
+numbex_client.py
+        pull <data> -- aktualizacja danych od daty
+                        sendUpdates(data) na webservice
+               -o <nazwa pliku> - zapis csv do pliku (bez podania - na stdout)
+        pullall -- œci¹gniecie wszystkich danych z bazy
+                        sendData() na webservice
+               -o <nazwa pliku> - zapis csv do pliku (bez podania - na stdout)
+        push <plik_csv> -- wysylka danych do serwera
+                        receiveUpdates(plik_csv) na webservice
+
+
+numbex_server.py
+        -l, --loglevel <DEBUG|WARN> -- poziom logów
+        -p, --port <PORT> -- port (standardowo 8000)
+        -d, --database <plik z baz¹> -- baza danych sqlite
+                        jeœli plik nie istnieje, stworzy now¹ bazê
