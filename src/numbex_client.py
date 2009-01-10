@@ -51,7 +51,7 @@ Available commands:
     options, args = op.parse_args()
     _tracefile = options.trace_file
     if options.output_file:
-        _outfile = options.output_file
+        _outfile = file(options.output_file, "wb")
     if len(args) < 1:
         op.error("command required")
         return
