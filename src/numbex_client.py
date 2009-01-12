@@ -23,7 +23,7 @@ def pull(since):
 
     msg = getUpdates()
     s = datetime.strptime(since, "%Y-%m-%dT%H:%M:%S")
-    msg._parameter = s.utctimetuple()
+    msg._parameter = s.timetuple()
     rsp = port.getUpdates(msg)
     _outfile.write(rsp._return)
 
