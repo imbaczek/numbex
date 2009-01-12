@@ -1,5 +1,6 @@
 import sqlite3
 import os.path
+from datetime import datetime
 
 class Database(object):
     def __init__(self, filename):
@@ -60,12 +61,37 @@ class Database(object):
         result = list(c)
         c.close()
         return result
-        
+    
+
+    def _numeric2string(self, num):
+        return '+%s'%num
+
     def update_data(self, data):
+        cursor = self.conn.cursor()
+        num2str = self._numeric2string
         for row in data:
-            print row
+            ns, ne = int(row[0]), int(row[1])
+            print '***',row
             for ovl in self.overlapping_ranges(int(row[0]), int(row[1])):
-                print ' ',ovl
+                os, oe = int(ovl[0]), int(ovl[1])
+                if os >= ns and os <= ne and oe >= ne: # left overlap
+                    print 'left ovl',ovl[0],ovl[1]
+                    self.set_range(cursor, ovl[0], num2str(ne+1), ovl[1])
+                elif oe >= ns and oe <= ne and os <= ns: # right overlap
+                    print 'right ovl',ovl[0],ovl[1]
+                    self.set_range(cursor, ovl[0], ovl[0], num2str(ns-1))
+                elif os >= ns and oe <= ne: # complete overlap, old is smaller
+                    print 'old smaller ovl',ovl[0],ovl[1]
+                    self.delete_range(cursor, ovl[0])
+                elif os <= ns and oe >= ne: # complete overlap, new is smaller
+                    print 'new smaller ovl',ovl[0],ovl[1]
+                    old = self.get_range(cursor, ovl[0])
+                    self.set_range(cursor, ovl[0], ovl[0], num2str(ns-1))
+                    self.insert_range(cursor, num2str(ne+1), ovl[1],
+                            old[2], old[3])
+            self.insert_range(cursor, *row)
+        self.conn.commit()
+        cursor.close()
         return True
 
     def overlapping_ranges(self, start, end):
@@ -81,5 +107,42 @@ class Database(object):
         result = list(c)
         c.close()
         return result
-        
 
+    def get_range(self, cursor, start):
+        return list(cursor.execute('''select start, end, sip, date_changed
+                from zakresy where start = ?''',
+                [start]))[0]
+
+    def set_range(self, cursor, start, newstart, newend):
+        ns = int(newstart)
+        ne = int(newend)
+        print 'set',start,'=>',newstart,newend
+        assert ns <= ne
+        cursor.execute('''update zakresy
+                set start = ?, end = ?, _s = ?, _e = ?
+                where start = ?''',
+                [newstart, newend, ns, ne, start])
+        return True
+        
+    def insert_range(self, cursor, start, end, sip, date_changed):
+        ns = int(start)
+        ne = int(end)
+        if isinstance(date_changed, str):
+            if '.' in date_changed:
+                date_changed = date_changed[:-7]
+            date_changed = datetime.strptime(date_changed, "%Y-%m-%dT%H:%M:%S")
+        print 'insert',start,end
+        assert ns <= ne
+        assert isinstance(date_changed, datetime)
+        cursor.execute('''insert into zakresy
+                (start, end, _s, _e, sip, date_changed)
+                values (?, ?, ?, ?, ?, ?)''',
+                [start, end, ns, ne, sip, date_changed])
+        return True
+
+    def delete_range(self, cursor, start):
+        print 'delete',start
+        cursor.execute('''delete from zakresy
+                where start = ?''',
+                [start])
+        return True
