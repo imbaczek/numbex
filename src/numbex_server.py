@@ -48,6 +48,8 @@ class MyNumbexService(NumbexServiceService):
     def soap_receiveUpdates(self, ps, **kw):
         request, response = NumbexServiceService.soap_receiveUpdates(self, ps, **kw)
         data = request._csv
+        l = list(csv.reader(StringIO(data)))
+        self.db.update_data(l)
         response._return = True
         return request, response
 
