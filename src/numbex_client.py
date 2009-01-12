@@ -48,6 +48,8 @@ Available commands:
             metavar="OUTFILE")
     op.add_option("-t", "--trace-file", help="trace file (for debugging)",
             metavar="TRACEFILE")
+    op.add_option("-u", "--url", help="url of the webservice",
+            metavar="URL", default=_url)	
     options, args = op.parse_args()
     _tracefile = options.trace_file
     if options.output_file:
@@ -55,6 +57,7 @@ Available commands:
     if len(args) < 1:
         op.error("command required")
         return
+    _url = options.url
     dispatch = {'pullall': pull_all,
                 'pull': pull,
                 'send': send}
