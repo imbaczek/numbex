@@ -37,7 +37,7 @@ def send(filename):
     rsp = port.receiveUpdates(msg)
 
 def main():
-    global _tracefile, _outfile
+    global _tracefile, _outfile, _url
     usage = """%prog [options] <command>\n
 Available commands:
     pull <DATE_SINCE>\tget numer ranges modified after DATE_SINCE
