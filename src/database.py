@@ -61,3 +61,23 @@ class Database(object):
         c.close()
         return result
         
+    def update_data(self, data):
+        for row in data:
+            print row
+            for ovl in self.overlapping_ranges(int(row[0]), int(row[1])):
+                print ' ',ovl
+        return True
+
+    def overlapping_ranges(self, start, end):
+        c = self.conn.cursor()
+        print ' ovl', start, end
+        c.execute('''select start, end
+                from zakresy
+                where (_s >= ? and _s <= ?)
+                    or (_e >= ? and _e <= ?)''',
+                [start, end, start, end])
+        result = list(c)
+        c.close()
+        return result
+        
+
