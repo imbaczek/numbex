@@ -10,7 +10,8 @@ class Database(object):
             self.create_db()
             self._populate_example()
         else:
-            self.conn = sqlite3.connect(filename)
+            self.conn = sqlite3.connect(filename,
+                    detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
 
     def create_db(self):
         c = self.conn.cursor()
