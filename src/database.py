@@ -45,7 +45,7 @@ class Database(object):
         c.execute('''select start, end, sip, date_changed
                 from zakresy
                 order by start''')
-        result = [row for row in c]
+        result = list(c)
         c.close()
         return result
 
@@ -55,7 +55,7 @@ class Database(object):
                 from zakresy
                 where date_changed >= ?
                 order by start''', [since])
-        result = [row for row in c]
+        result = list(c)
         c.close()
         return result
         
