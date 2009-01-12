@@ -18,6 +18,8 @@ class Database(object):
         c.execute('''create table zakresy (
             start text primary key,
             end text,
+            _s decimal(15,0),
+            _e decimal(15,0),
             sip text,
             date_changed timestamp)''')
         self.conn.commit()
@@ -35,8 +37,8 @@ class Database(object):
                 ]
         c = self.conn.cursor()
         for r in data:
-            c.execute('''insert into zakresy (start, end, sip, date_changed)
-                values (?, ?, ?, ?)''', r)
+            c.execute('''insert into zakresy (start, end, sip, date_changed, _s, _e)
+                values (?, ?, ?, ?, ?, ?)''', (list(r)+[int(r[0]), int(r[1])]))
         self.conn.commit()
         c.close()
 
