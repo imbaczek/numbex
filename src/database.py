@@ -69,13 +69,16 @@ class Database(object):
         return True
 
     def overlapping_ranges(self, start, end):
+        assert start <= end
         c = self.conn.cursor()
         print ' ovl', start, end
         c.execute('''select start, end
                 from zakresy
-                where (_s >= ? and _s <= ?)
-                    or (_e >= ? and _e <= ?)''',
-                [start, end, start, end])
+                where (_s >= ? and _s <= ?) -- left overlap
+                    or (_e >= ? and _e <= ?) -- right overlap
+                    or (_s <= ? and _e >= ?) -- complete overlap
+                    or (_s >= ? and _e <= ?) -- complete overlap''',
+                [start, end, start, end, start, end, start, end])
         result = list(c)
         c.close()
         return result
