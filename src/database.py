@@ -69,6 +69,7 @@ class Database(object):
     def update_data(self, data):
         cursor = self.conn.cursor()
         num2str = self._numeric2string
+        now = datetime.now()
         for row in data:
             ns, ne = int(row[0]), int(row[1])
             print '***',row
@@ -76,19 +77,20 @@ class Database(object):
                 os, oe = int(ovl[0]), int(ovl[1])
                 if os >= ns and os <= ne and oe >= ne: # left overlap
                     print 'left ovl',ovl[0],ovl[1]
-                    self.set_range(cursor, ovl[0], num2str(ne+1), ovl[1])
+                    self.set_range(cursor, ovl[0], num2str(ne+1), ovl[1], now)
                 elif oe >= ns and oe <= ne and os <= ns: # right overlap
                     print 'right ovl',ovl[0],ovl[1]
-                    self.set_range(cursor, ovl[0], ovl[0], num2str(ns-1))
+                    self.set_range(cursor, ovl[0], ovl[0], num2str(ns-1), now)
                 elif os >= ns and oe <= ne: # complete overlap, old is smaller
                     print 'old smaller ovl',ovl[0],ovl[1]
                     self.delete_range(cursor, ovl[0])
                 elif os <= ns and oe >= ne: # complete overlap, new is smaller
                     print 'new smaller ovl',ovl[0],ovl[1]
                     old = self.get_range(cursor, ovl[0])
-                    self.set_range(cursor, ovl[0], ovl[0], num2str(ns-1))
+                    self.set_range(cursor, ovl[0], ovl[0], num2str(ns-1), now)
                     self.insert_range(cursor, num2str(ne+1), ovl[1],
-                            old[2], old[3])
+                            old[2], now)
+            row[3] = now
             self.insert_range(cursor, *row)
         self.conn.commit()
         cursor.close()
@@ -113,15 +115,15 @@ class Database(object):
                 from zakresy where start = ?''',
                 [start]))[0]
 
-    def set_range(self, cursor, start, newstart, newend):
+    def set_range(self, cursor, start, newstart, newend, date_changed):
         ns = int(newstart)
         ne = int(newend)
         print 'set',start,'=>',newstart,newend
         assert ns <= ne
         cursor.execute('''update zakresy
-                set start = ?, end = ?, _s = ?, _e = ?
+                set start = ?, end = ?, _s = ?, _e = ?, date_changed = ?
                 where start = ?''',
-                [newstart, newend, ns, ne, start])
+                [newstart, newend, ns, ne, date_changed, start])
         return True
         
     def insert_range(self, cursor, start, end, sip, date_changed):
