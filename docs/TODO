@@ -2,9 +2,7 @@ TODO
 ----
 
 baza:
-- dodac pole na podpis
-- dodac pole na wlasciciela
-- dodac wlascicieli (nazwa, tabela z kluczami pub)
+- dodac przykladowe dane
 * m2crypto DES.DES:
 - sprawdzanie podpisow przy imporcie nowych danych
 - dodanie bazy kluczy 
@@ -34,3 +32,10 @@ runner:
 - add owner
 - add key
 - status
+
+
+DONE
+----
+- dodac pole na podpis
+- dodac pole na wlasciciela
+- dodac wlascicieli (nazwa, tabela z kluczami pub)
