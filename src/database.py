@@ -21,12 +21,12 @@ class Database(object):
         c.execute('''create table numbex_domains (
             sip text primary key,
             owner text,
-            foreign key (owner) references (numbex_owners))''')
+            foreign key (owner) references numbex_owners(name) )''')
         c.execute('''create table numbex_pubkeys (
             id integer primary key,
             pubkey text,
             owner text,
-            foreign key (owner) references (numbex_owners))''')
+            foreign key (owner) references numbex_owners(name))''')
         c.execute('''create table numbex_ranges (
             start text primary key,
             end text,
@@ -35,8 +35,8 @@ class Database(object):
             sip text,
             owner text,
             date_changed timestamp,
-            foreign key (sip) references (numbex_domains),
-            foreign key (owner) references (numbex_owners))''')
+            foreign key (sip) references numbex_domains(sip),
+            foreign key (owner) references numbex_owners(owner))''')
 
         self.conn.commit()
         c.close()
