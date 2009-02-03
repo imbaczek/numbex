@@ -42,14 +42,27 @@ class Database(object):
         c.close()
 
     def _populate_example(self):
-        self._populate_example_owners()
-        self._populate_example_ranges()
+        cursor = self.conn.cursor()
+        self._populate_example_owners(cursor)
+        self._populate_example_ranges(cursor)
+        c.close()
 
-    def _populate_example_owners(self):
+    def _populate_example_owners(self, c):
         owners = ['freeconet', 'telarena']
+        ownq = 'insert into numbex_owners (name) values (?)'
+        for o in owners:
+            c.execute(ownq, [o])
+        domains = [['sip.freeconet.pl:1234', 'freeconet'],
+                    ['sip.freeconet.pl', 'freeconet'],
+                    ['telarena.pl', 'telarena'],
+                    ]
+        domainq = 'insert into numbex_domains (sip, owner) values (?, ?)'
+        for d in domains:
+            c.execute(domainq, d)
+        self.conn.commit()
 
 
-    def _populate_example_ranges(self):
+    def _populate_example_ranges(self, c):
         from datetime import datetime, timedelta
         td1 = timedelta(-10)
         td2 = timedelta(-5)
@@ -59,12 +72,10 @@ class Database(object):
                 ('+4830000', '+4830099', 'sip.freeconet.pl', 'freeconet', now + td2),
                 ('+4821000', '+4821111', 'sip.freeconet.pl', 'freeconet', now + td2),
                 ]
-        c = self.conn.cursor()
         for r in data:
             c.execute('''insert into numbex_ranges (start, end, sip, owner, date_changed, _s, _e)
                 values (?, ?, ?, ?, ?, ?, ?)''', (list(r)+[int(r[0]), int(r[1])]))
         self.conn.commit()
-        c.close()
 
     def get_data_all(self):
         c = self.conn.cursor()
@@ -84,7 +95,6 @@ class Database(object):
         result = list(c)
         c.close()
         return result
-    
 
     def _numeric2string(self, num):
         return '+%s'%num
@@ -148,7 +158,7 @@ class Database(object):
                 where start = ?''',
                 [newstart, newend, ns, ne, date_changed, start])
         return True
-        
+
     def insert_range(self, cursor, start, end, sip, date_changed):
         ns = int(start)
         ne = int(end)
