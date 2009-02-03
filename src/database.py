@@ -16,30 +16,53 @@ class Database(object):
 
     def create_db(self):
         c = self.conn.cursor()
-        c.execute('''create table zakresy (
+        c.execute('''create table numbex_owners (
+            name text primary key)''')
+        c.execute('''create table numbex_domains (
+            sip text primary key,
+            owner text,
+            foreign key (owner) references (numbex_owners))''')
+        c.execute('''create table numbex_pubkeys (
+            id integer primary key,
+            pubkey text,
+            owner text,
+            foreign key (owner) references (numbex_owners))''')
+        c.execute('''create table numbex_ranges (
             start text primary key,
             end text,
             _s decimal(15,0),
             _e decimal(15,0),
             sip text,
-            date_changed timestamp)''')
+            owner text,
+            date_changed timestamp,
+            foreign key (sip) references (numbex_domains),
+            foreign key (owner) references (numbex_owners))''')
+
         self.conn.commit()
         c.close()
 
     def _populate_example(self):
+        self._populate_example_owners()
+        self._populate_example_ranges()
+
+    def _populate_example_owners(self):
+        owners = ['freeconet', 'telarena']
+
+
+    def _populate_example_ranges(self):
         from datetime import datetime, timedelta
         td1 = timedelta(-10)
         td2 = timedelta(-5)
         now = datetime.now()
-        data = [('+481234', '+481299', 'sip.freeconet.pl', now + td1),
-                ('+4820000', '+4820999', 'sip.freeconet.pl', now + td1),
-                ('+4830000', '+4830099', 'sip.freeconet.pl', now + td2),
-                ('+4821000', '+4821111', 'sip.freeconet.pl', now + td2),
+        data = [('+481234', '+481299', 'sip.freeconet.pl', 'freeconet', now + td1),
+                ('+4820000', '+4820999', 'sip.freeconet.pl', 'freeconet', now + td1),
+                ('+4830000', '+4830099', 'sip.freeconet.pl', 'freeconet', now + td2),
+                ('+4821000', '+4821111', 'sip.freeconet.pl', 'freeconet', now + td2),
                 ]
         c = self.conn.cursor()
         for r in data:
-            c.execute('''insert into zakresy (start, end, sip, date_changed, _s, _e)
-                values (?, ?, ?, ?, ?, ?)''', (list(r)+[int(r[0]), int(r[1])]))
+            c.execute('''insert into numbex_ranges (start, end, sip, owner, date_changed, _s, _e)
+                values (?, ?, ?, ?, ?, ?, ?)''', (list(r)+[int(r[0]), int(r[1])]))
         self.conn.commit()
         c.close()
 
@@ -112,7 +135,7 @@ class Database(object):
 
     def get_range(self, cursor, start):
         return list(cursor.execute('''select start, end, sip, date_changed
-                from zakresy where start = ?''',
+                from numbex_ranges where start = ?''',
                 [start]))[0]
 
     def set_range(self, cursor, start, newstart, newend, date_changed):
