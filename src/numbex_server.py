@@ -1,4 +1,4 @@
-#!/apps/pydev/hjoukl/bin/python2.4
+#!/usr/bin/python
 # *** ZSI 2.1 ***
 from optparse import OptionParser
 from datetime import datetime
