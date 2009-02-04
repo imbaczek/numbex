@@ -73,6 +73,9 @@ class Database(object):
             f = file(o+'.priv.pem', 'w')
             f.write(priv)
             f.close()
+            f = file(o+'.pem', 'w')
+            f.write(pub)
+            f.close()
             keys[o] = dsa
             c.execute(keyq, [o, pub])
 
@@ -129,6 +132,23 @@ class Database(object):
 
     def _numeric2string(self, num):
         return '+%s'%num
+
+    def check_record_signature(self, cur, start, end, sip, owner, mdate, sig):
+        keyq = 'select pubkey from numbex_pubkeys where owner = ?'
+        key = list(cur.execute(keyq, [owner]))[0][0]
+        dsapub = crypto.parse_pub_key(key.encode('ascii'))
+        return crypto.check_signature(dsapub, sig,
+                start, end, sip, owner, mdate)
+
+    def check_data_signatures(self, data):
+        cursor = self.conn.cursor()
+        try:
+            for row in data:
+                if not self.check_record_signature(cursor, *row):
+                    return False
+            return True
+        finally:
+            cursor.close()
 
     def update_data(self, data):
         cursor = self.conn.cursor()
