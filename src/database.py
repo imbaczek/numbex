@@ -94,8 +94,7 @@ class Database(object):
                 ]
         for r in data:
             if r[3] in keys:
-                x, y = crypto.sign_record(keys[r[3]], *r)
-                sig = '%s %s'%(x.encode('base64'), y.encode('base64'))
+                sig = crypto.sign_record(keys[r[3]], *r)
             else:
                 sig = ''
             c.execute('''insert into numbex_ranges (start, end, sip, owner, date_changed, signature, _s, _e)
@@ -105,7 +104,7 @@ class Database(object):
     def get_data_all(self):
         c = self.conn.cursor()
         c.execute('''select start, end, sip, date_changed
-                from zakresy
+                from numbex_ranges
                 order by start''')
         result = list(c)
         c.close()
@@ -114,7 +113,7 @@ class Database(object):
     def get_data_since(self, since):
         c = self.conn.cursor()
         c.execute('''select start, end, sip, date_changed
-                from zakresy
+                from numbex_ranges
                 where date_changed >= ?
                 order by start''', [since])
         result = list(c)
@@ -158,7 +157,7 @@ class Database(object):
         assert start <= end
         c = self.conn.cursor()
         c.execute('''select start, end
-                from zakresy
+                from numbex_ranges
                 where (_s >= ? and _s <= ?) -- left overlap
                     or (_e >= ? and _e <= ?) -- right overlap
                     or (_s <= ? and _e >= ?) -- complete overlap
@@ -178,7 +177,7 @@ class Database(object):
         ne = int(newend)
         print 'set',start,'=>',newstart,newend
         assert ns <= ne
-        cursor.execute('''update zakresy
+        cursor.execute('''update numbex_ranges
                 set start = ?, end = ?, _s = ?, _e = ?, date_changed = ?
                 where start = ?''',
                 [newstart, newend, ns, ne, date_changed, start])
@@ -194,7 +193,7 @@ class Database(object):
         print 'insert',start,end
         assert ns <= ne
         assert isinstance(date_changed, datetime)
-        cursor.execute('''insert into zakresy
+        cursor.execute('''insert into numbex_ranges
                 (start, end, _s, _e, sip, date_changed)
                 values (?, ?, ?, ?, ?, ?)''',
                 [start, end, ns, ne, sip, date_changed])
@@ -202,7 +201,7 @@ class Database(object):
 
     def delete_range(self, cursor, start):
         print 'delete',start
-        cursor.execute('''delete from zakresy
+        cursor.execute('''delete from numbex_ranges
                 where start = ?''',
                 [start])
         return True
