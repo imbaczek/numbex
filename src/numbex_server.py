@@ -27,8 +27,8 @@ class MyNumbexService(NumbexServiceService):
     def _transform_to_csv(self, data):
         ofile = StringIO()
         csvwriter = csv.writer(ofile)
-        for start, end, sip, date in data:
-            csvwriter.writerow([start, end, sip, date.isoformat()])
+        for start, end, sip, owner, date, sig in data:
+            csvwriter.writerow([start, end, sip, owner, date.isoformat(), sig])
         return ofile.getvalue()
 
     def soap_getData(self, ps, **kw):
