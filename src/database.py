@@ -198,6 +198,10 @@ class Database(object):
             if '.' in date_changed:
                 date_changed = date_changed[:-7]
             date_changed = datetime.strptime(date_changed, "%Y-%m-%dT%H:%M:%S")
+        ovl = self.overlapping_ranges(start, end)
+        if ovl:
+            raise ValueError("cannot insert range %s-%s: overlaps with %s"%
+                (start, end, str(ovl)))
         print 'insert',start,end
         assert ns <= ne
         assert isinstance(date_changed, datetime)
