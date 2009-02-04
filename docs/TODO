@@ -2,11 +2,8 @@ TODO
 ----
 
 baza:
-- dodac przykladowe dane
 * m2crypto DES.DES:
 - sprawdzanie podpisow przy imporcie nowych danych
-- dodanie bazy kluczy 
-- dodac generacje par
 
 obsluga gita:
 - napisac obsluge gitshelve do numerow
@@ -36,6 +33,9 @@ runner:
 
 DONE
 ----
+- dodac przykladowe dane
 - dodac pole na podpis
 - dodac pole na wlasciciela
 - dodac wlascicieli (nazwa, tabela z kluczami pub)
+- dodanie bazy kluczy
+- dodac generacje par
