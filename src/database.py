@@ -1,15 +1,28 @@
 import sqlite3
 import os.path
 import csv
+import logging
 from datetime import datetime
 
 import crypto
 
 class Database(object):
-    def __init__(self, filename, logger=None, fill_example=None):
+    def __init__(self, filename, logger=None, loghandler=None, fill_example=None):
         if logger is None:
-            import logging
             self.log = logging.getLogger('Database')
+            self.log.setLevel(logging.INFO)
+            if loghandler is None:
+                loghandler = logging.FileHandler('database.log')
+                loghandler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+                self.log.addHandler(loghandler)
+        else:
+            self.log = logger
+
+        self.log.info('starting database with file %s', filename)
+
+        if loghandler is not None:
+            self.log.addHandler(loghandler)
+
         self.filename = filename
         if filename != ':memory:' and not os.path.isfile(filename):
             self.conn = sqlite3.connect(filename,
@@ -53,11 +66,11 @@ class Database(object):
         c.close()
 
     def _populate_example(self):
-        print 'generating example data...'
+        self.log.info('generating example data...')
         cursor = self.conn.cursor()
         keys = self._populate_example_owners(cursor)
         self._populate_example_ranges(cursor, keys)
-        print 'done.'
+        self.log.info('done.')
         cursor.close()
 
     def _populate_example_owners(self, c):
@@ -156,20 +169,20 @@ class Database(object):
         now = datetime.now()
         for row in data:
             ns, ne = int(row[0]), int(row[1])
-            print '***',row
+            self.log.info('*** %s', row)
             for ovl in self.overlapping_ranges(int(row[0]), int(row[1])):
                 os, oe = int(ovl[0]), int(ovl[1])
                 if os >= ns and os <= ne and oe >= ne: # left overlap
-                    print 'left ovl',ovl[0],ovl[1]
+                    self.log.info('left ovl %s %s',ovl[0],ovl[1])
                     self.set_range(cursor, ovl[0], num2str(ne+1), ovl[1], now)
                 elif oe >= ns and oe <= ne and os <= ns: # right overlap
-                    print 'right ovl',ovl[0],ovl[1]
+                    self.log.info('right ovl %s %s',ovl[0],ovl[1])
                     self.set_range(cursor, ovl[0], ovl[0], num2str(ns-1), now)
                 elif os >= ns and oe <= ne: # complete overlap, old is smaller
-                    print 'old smaller ovl',ovl[0],ovl[1]
+                    self.log.info('old smaller ovl %s %s',ovl[0],ovl[1])
                     self.delete_range(cursor, ovl[0])
                 elif os <= ns and oe >= ne: # complete overlap, new is smaller
-                    print 'new smaller ovl',ovl[0],ovl[1]
+                    self.log.info('new smaller ovl %s %s',ovl[0],ovl[1])
                     old = self.get_range(cursor, ovl[0])
                     self.set_range(cursor, ovl[0], ovl[0], num2str(ns-1), now)
                     self.insert_range(cursor, num2str(ne+1), ovl[1],
@@ -203,7 +216,7 @@ class Database(object):
     def set_range(self, cursor, start, newstart, newend, date_changed):
         ns = int(newstart)
         ne = int(newend)
-        print 'set',start,'=>',newstart,newend
+        self.log.info('set %s => %s %s',start,newstart,newend)
         assert ns <= ne
         cursor.execute('''update numbex_ranges
                 set start = ?, end = ?, _s = ?, _e = ?, date_changed = ?
@@ -222,7 +235,7 @@ class Database(object):
         if ovl:
             raise ValueError("cannot insert range %s-%s: overlaps with %s"%
                 (start, end, str(ovl)))
-        print 'insert',start,end
+        self.log.info('insert %s %s',start,end)
         assert ns <= ne
         assert isinstance(date_changed, datetime)
         cursor.execute('''insert into numbex_ranges
@@ -232,7 +245,7 @@ class Database(object):
         return True
 
     def delete_range(self, cursor, start):
-        print 'delete',start
+        self.log.info('delete %s',start)
         cursor.execute('''delete from numbex_ranges
                 where start = ?''',
                 [start])
