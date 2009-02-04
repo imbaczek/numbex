@@ -16,22 +16,31 @@ def generate_dsa_key_pair(bits=1024):
     return dsa, priv.read(), pub.read()
 
 
-def sign_record(dsa, start, end, sip, owner, mdate):
+def make_csv_record(start, end, sip, owner, mdate):
     f = StringIO()
     writer = csv.writer(f)
     writer.writerow([start, end, sip, owner, mdate.isoformat()])
-    msg = f.getvalue().strip()
+    return f.getvalue().strip()
+
+def sign_record(dsa, start, end, sip, owner, mdate):
+    return sign_csv_record(dsa, make_csv_record(start, end, sip, owner, mdate))
+
+def sign_csv_record(dsa, msg):
     md = EVP.MessageDigest('sha1')
     md.update(msg)
     digest = md.final()
     r, s = dsa.sign(digest)
-    return '%s %s %s'%(digest.encode('base64').strip(),
-            r.encode('base64').strip(), s.encode('base64').strip())
-
+    return '%s %s'%(r.encode('base64').strip(), s.encode('base64').strip())
 
 def check_signature(dsapub, sig, start, end, sip, owner, mdate):
-    digest, r, s = sig.split()
-    digest = digest.decode('base64')
+    return check_csv_signature(dsapub, sig,
+                make_csv_record(start, end, sip, owner, mdate))
+
+def check_csv_signature(dsapub, sig, msg):
+    md = EVP.MessageDigest('sha1')
+    md.update(msg)
+    digest = md.final()
+    r, s = sig.split()
     r = r.decode('base64')
     s = s.decode('base64')
     return dsapub.verify(digest, r, s)
