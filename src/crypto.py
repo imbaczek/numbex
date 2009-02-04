@@ -25,7 +25,8 @@ def sign_record(dsa, start, end, sip, owner, mdate):
     md.update(msg)
     digest = md.final()
     r, s = dsa.sign(digest)
-    return '%s %s %s'%(digest.encode('base64'), r.encode('base64'), s.encode('base64'))
+    return '%s %s %s'%(digest.encode('base64').strip(),
+            r.encode('base64').strip(), s.encode('base64').strip())
 
 
 def check_signature(dsapub, sig, start, end, sip, owner, mdate):
