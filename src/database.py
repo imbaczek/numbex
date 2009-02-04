@@ -6,16 +6,23 @@ from datetime import datetime
 import crypto
 
 class Database(object):
-    def __init__(self, filename):
+    def __init__(self, filename, logger=None, fill_example=None):
+        if logger is None:
+            import logging
+            self.log = logging.getLogger('Database')
         self.filename = filename
-        if not os.path.isfile(filename):
+        if filename != ':memory:' and not os.path.isfile(filename):
             self.conn = sqlite3.connect(filename,
                     detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
             self.create_db()
-            self._populate_example()
+            if fill_example is None:
+                fill_example = True
         else:
             self.conn = sqlite3.connect(filename,
                     detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
+
+        if fill_example:
+            self._populate_example()
 
     def create_db(self):
         c = self.conn.cursor()
