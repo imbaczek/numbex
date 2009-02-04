@@ -44,7 +44,12 @@ Signature: $sig''')
             raise NumbexDBError('key not found: '+x)
 
     def import_data(self, data):
-        pass
+        '''data format: iterator of records in format produced by parse_record'''
+        shelf = self.shelf
+        for r in data:
+            start, end, sip, owner, mdate, rsasig = data
+            num = self.make_repo_path(start)
+            shelf[num] = self.make_record(start, end, sip, owner, mdate, rsasig)
 
     def export_data(self, data):
         pass
