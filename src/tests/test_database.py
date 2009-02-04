@@ -55,6 +55,16 @@ class TestDBInsertOverlap(unittest.TestCase):
         self.assertRaises(ValueError, self.db.insert_range, self.cursor, *v2)
 
 
+class TestDBSignatures(unittest.TestCase):
+    def setUp(self):
+        self.db = database.Database(':memory:')
+        self.db.create_db()
+        self.db._populate_example()
+
+    def test_check_data_sigs(self):
+        data = self.db.get_data_all()
+        self.assert_(self.db.check_data_signatures(data))
+
 
 if __name__ == '__main__':
     unittest.main()
