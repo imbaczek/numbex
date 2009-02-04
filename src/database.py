@@ -1,6 +1,9 @@
 import sqlite3
 import os.path
+import csv
 from datetime import datetime
+
+import crypto
 
 class Database(object):
     def __init__(self, filename):
@@ -35,6 +38,7 @@ class Database(object):
             sip text,
             owner text,
             date_changed timestamp,
+            signature text,
             foreign key (sip) references numbex_domains(sip),
             foreign key (owner) references numbex_owners(owner))''')
 
@@ -42,16 +46,29 @@ class Database(object):
         c.close()
 
     def _populate_example(self):
+        print 'generating example data...'
         cursor = self.conn.cursor()
-        self._populate_example_owners(cursor)
-        self._populate_example_ranges(cursor)
-        c.close()
+        keys = self._populate_example_owners(cursor)
+        self._populate_example_ranges(cursor, keys)
+        print 'done.'
+        cursor.close()
 
     def _populate_example_owners(self, c):
+        from M2Crypto import DSA, BIO
+
         owners = ['freeconet', 'telarena']
+        keys = {}
         ownq = 'insert into numbex_owners (name) values (?)'
+        keyq = 'insert into numbex_pubkeys (owner, pubkey) values (?, ?)'
         for o in owners:
             c.execute(ownq, [o])
+            dsa, priv, pub = crypto.generate_dsa_key_pair(1024)
+            f = file(o+'.priv.pem', 'w')
+            f.write(priv)
+            f.close()
+            keys[o] = dsa
+            c.execute(keyq, [o, pub])
+
         domains = [['sip.freeconet.pl:1234', 'freeconet'],
                     ['sip.freeconet.pl', 'freeconet'],
                     ['telarena.pl', 'telarena'],
@@ -60,9 +77,12 @@ class Database(object):
         for d in domains:
             c.execute(domainq, d)
         self.conn.commit()
+        return keys
 
 
-    def _populate_example_ranges(self, c):
+    def _populate_example_ranges(self, c, keys = None):
+        if keys is None:
+            keys = {}
         from datetime import datetime, timedelta
         td1 = timedelta(-10)
         td2 = timedelta(-5)
@@ -73,8 +93,13 @@ class Database(object):
                 ('+4821000', '+4821111', 'sip.freeconet.pl', 'freeconet', now + td2),
                 ]
         for r in data:
-            c.execute('''insert into numbex_ranges (start, end, sip, owner, date_changed, _s, _e)
-                values (?, ?, ?, ?, ?, ?, ?)''', (list(r)+[int(r[0]), int(r[1])]))
+            if r[3] in keys:
+                x, y = crypto.sign_record(keys[r[3]], *r)
+                sig = '%s %s'%(x.encode('base64'), y.encode('base64'))
+            else:
+                sig = ''
+            c.execute('''insert into numbex_ranges (start, end, sip, owner, date_changed, signature, _s, _e)
+                values (?, ?, ?, ?, ?, ?, ?, ?)''', (list(r)+[sig, int(r[0]), int(r[1])]))
         self.conn.commit()
 
     def get_data_all(self):
