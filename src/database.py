@@ -103,7 +103,7 @@ class Database(object):
 
     def get_data_all(self):
         c = self.conn.cursor()
-        c.execute('''select start, end, sip, date_changed
+        c.execute('''select start, end, sip, owner, date_changed, signature
                 from numbex_ranges
                 order by start''')
         result = list(c)
@@ -112,7 +112,7 @@ class Database(object):
 
     def get_data_since(self, since):
         c = self.conn.cursor()
-        c.execute('''select start, end, sip, date_changed
+        c.execute('''select start, end, sip, owner, date_changed, signature
                 from numbex_ranges
                 where date_changed >= ?
                 order by start''', [since])
@@ -168,7 +168,8 @@ class Database(object):
         return result
 
     def get_range(self, cursor, start):
-        return list(cursor.execute('''select start, end, sip, date_changed
+        return list(cursor.execute('''select start, end, sip,
+                     owner, date_changed, signature
                 from numbex_ranges where start = ?''',
                 [start]))[0]
 
@@ -183,7 +184,7 @@ class Database(object):
                 [newstart, newend, ns, ne, date_changed, start])
         return True
 
-    def insert_range(self, cursor, start, end, sip, date_changed):
+    def insert_range(self, cursor, start, end, sip, owner, date_changed, sig):
         ns = int(start)
         ne = int(end)
         if isinstance(date_changed, str):
@@ -194,9 +195,9 @@ class Database(object):
         assert ns <= ne
         assert isinstance(date_changed, datetime)
         cursor.execute('''insert into numbex_ranges
-                (start, end, _s, _e, sip, date_changed)
-                values (?, ?, ?, ?, ?, ?)''',
-                [start, end, ns, ne, sip, date_changed])
+                (start, end, _s, _e, sip, owner, date_changed, signature)
+                values (?, ?, ?, ?, ?, ?, ?, ?)''',
+                [start, end, ns, ne, sip, owner, date_changed, sig])
         return True
 
     def delete_range(self, cursor, start):
