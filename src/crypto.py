@@ -46,5 +46,9 @@ def check_csv_signature(dsapub, sig, msg):
     return dsapub.verify(digest, r, s)
 
 def parse_pub_key(pubstr):
+    if not isinstance(pubstr, str):
+        raise TypeError('str argument required')
+    if not pubstr.startswith('-----BEGIN PUBLIC KEY-----'):
+        raise ValueError("public key didn't start with '-----BEGIN PUBLIC KEY-----'")
     mem = BIO.MemoryBuffer(pubstr)
     return DSA.load_pub_key_bio(mem)
