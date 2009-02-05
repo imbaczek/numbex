@@ -12,6 +12,10 @@
 
   <xs:element name="getUpdatesResponse" nillable="true" type="tns:getUpdatesResponse"/>
 
+  <xs:element name="getUnsigned" nillable="true" type="tns:getData"/>
+
+  <xs:element name="getUnsignedResponse" nillable="true" type="tns:getDataResponse"/>
+
   <xs:element name="receiveUpdates" nillable="true" type="tns:receiveUpdates"/>
 
   <xs:element name="receiveUpdatesResponse" nillable="true" type="tns:receiveUpdatesResponse"/>
@@ -50,6 +54,17 @@
     </xs:sequence>
   </xs:complexType>
 
+  <xs:complexType name="getUnsigned">
+    <xs:sequence>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="getUnsignedResponse">
+    <xs:sequence>
+      <xs:element name="return" type="xs:string" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
     </xsd:schema>
   </types>
   <message name="getData">
@@ -63,6 +78,12 @@
   </message>
   <message name="getUpdatesResponse">
     <part name="parameters" element="tns:getUpdatesResponse"/>
+  </message>
+  <message name="getUnsigned">
+    <part name="parameters" element="tns:getUnsigned"/>
+  </message>
+  <message name="getUnsignedResponse">
+    <part name="parameters" element="tns:getUnsignedResponse"/>
   </message>
   <message name="receiveUpdates">
     <part name="parameters" element="tns:receiveUpdates"/>
@@ -79,6 +100,10 @@
       <input message="tns:getUpdates"/>
       <output message="tns:getUpdatesResponse"/>
     </operation>
+    <operation name="getUnsigned">
+      <input message="tns:getUnsigned"/>
+      <output message="tns:getUnsignedResponse"/>
+    </operation>
     <operation name="receiveUpdates">
       <input message="tns:receiveUpdates"/>
       <output message="tns:receiveUpdatesResponse"/>
@@ -88,6 +113,15 @@
     <soap:binding transport="http://schemas.xmlsoap.org/soap/http" style="document"/>
     <operation name="getData">
       <soap:operation soapAction="getData"/>
+      <input>
+        <soap:body use="literal"/>
+      </input>
+      <output>
+        <soap:body use="literal"/>
+      </output>
+    </operation>
+    <operation name="getUnsigned">
+      <soap:operation soapAction="getUnsigned"/>
       <input>
         <soap:body use="literal"/>
       </input>
