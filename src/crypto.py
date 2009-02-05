@@ -5,7 +5,7 @@ from M2Crypto import DSA, BIO, EVP
 try:
     from cStringIO import StringIO
 except ImportError:
-    import StringIO
+    from StringIO import StringIO
 
 
 def generate_dsa_key_pair(bits=1024):
