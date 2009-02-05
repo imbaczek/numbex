@@ -66,5 +66,83 @@ class TestDBSignatures(unittest.TestCase):
         self.assert_(self.db.check_data_signatures(data))
 
 
+class TestDBUpdateData(unittest.TestCase):
+    def setUp(self):
+        self.db = database.Database(':memory:')
+
+    def singleSetUp(self):
+        self.db.create_db()
+        v = (u'+48581000', u'+48581999', u'sip.freeconet.pl',
+            u'freeconet', datetime.datetime.now(), u'')
+        self.rec = v
+        cursor = self.db.conn.cursor()
+        self.db.insert_range(cursor, *v)
+        cursor.close()
+
+    def singleTearDown(self):
+        self.db.drop_db()
+
+    def test_equal_overlap(self):
+        self.singleSetUp()
+        data = [(u'+48581000', u'+48581999', u'sip.freeconet.pl',
+            u'freeconet', datetime.datetime.now(), u'placeholder sig')]
+        self.db.update_data(data)
+        r = self.db.get_data_all()
+        self.assertEqual(data, r)
+        self.singleTearDown()
+
+
+    def update_data_test(self, data, expected):
+        self.db.update_data(data)
+        result = [[s, e, sip, owner, None, sig] 
+                for s, e, sip, owner, mdate, sig in self.db.get_data_all()]
+        self.assertEqual(sorted(result, key=lambda x: int(x[0])), expected)
+
+    def test_inner_overlap(self):
+        self.singleSetUp()
+        # we'll have to ignore the mdate
+        data = [(u'+48581001', u'+48581998', u'new.freeconet.pl',
+            u'freeconet', datetime.datetime.now(), u'')]
+        expected = [
+        [u'+48581000',u'+48581000', u'sip.freeconet.pl',u'freeconet',None,u''],
+        [u'+48581001',u'+48581998', u'new.freeconet.pl',u'freeconet',None,u''],
+        [u'+48581999',u'+48581999', u'sip.freeconet.pl',u'freeconet',None,u''],
+        ]
+        self.update_data_test(data, expected)
+        self.singleTearDown()
+
+    def test_left_overlap(self):
+        self.singleSetUp()
+        data = [(u'+4858999', u'+48581000', u'new.freeconet.pl',
+            u'freeconet', datetime.datetime.now(), u'')]
+        expected = [
+        [u'+4858999',u'+48581000',  u'new.freeconet.pl',u'freeconet',None,u''],
+        [u'+48581001',u'+48581999', u'sip.freeconet.pl',u'freeconet',None,u''],
+        ]
+        self.update_data_test(data, expected)
+        self.singleTearDown()
+
+    def test_right_overlap(self):
+        self.singleSetUp()
+        data = [(u'+48581999', u'+48582000', u'new.freeconet.pl',
+            u'freeconet', datetime.datetime.now(), u'')]
+        expected = [
+        [u'+48581000',u'+48581998', u'sip.freeconet.pl',u'freeconet',None,u''],
+        [u'+48581999',u'+48582000', u'new.freeconet.pl',u'freeconet',None,u''],
+        ]
+        self.update_data_test(data, expected)
+        self.singleTearDown()
+
+    def test_outer_overlap(self):
+        self.singleSetUp()
+        data = [(u'+4858999', u'+48582000', u'new.freeconet.pl',
+            u'freeconet', datetime.datetime.now(), u'')]
+        expected = [
+        [u'+4858999',u'+48582000', u'new.freeconet.pl',u'freeconet',None,u''],
+        ]
+        self.update_data_test(data, expected)
+        self.singleTearDown()
+
+
 if __name__ == '__main__':
     unittest.main()
