@@ -9,7 +9,7 @@ import crypto
 class Database(object):
     def __init__(self, filename, logger=None, loghandler=None, fill_example=None):
         if logger is None:
-            self.log = logging.getLogger('Database')
+            self.log = logging.getLogger('Numbex DB')
             self.log.setLevel(logging.INFO)
             if loghandler is None:
                 loghandler = logging.FileHandler('database.log')
