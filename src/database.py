@@ -154,6 +154,16 @@ class Database(object):
         c.close()
         return result
 
+    def get_data_unsigned(self):
+        c = self.conn.cursor()
+        c.execute('''select start, end, sip, owner, date_changed, signature
+                from numbex_ranges
+                where signature = '' or signature is null
+                order by start''')
+        result = list(c)
+        c.close()
+        return result
+
     def _numeric2string(self, num):
         return '+%s'%num
 
