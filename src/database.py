@@ -65,6 +65,16 @@ class Database(object):
         self.conn.commit()
         c.close()
 
+    def drop_db(self):
+        self.log.info('dropping database tables.')
+        c = self.conn.cursor()
+        c.execute('drop table numbex_ranges')
+        c.execute('drop table numbex_pubkeys')
+        c.execute('drop table numbex_domains')
+        c.execute('drop table numbex_owners')
+        c.close()
+        self.conn.commit()
+
     def _populate_example(self):
         self.log.info('generating example data...')
         cursor = self.conn.cursor()
