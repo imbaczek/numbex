@@ -38,6 +38,7 @@ class Database(object):
             self._populate_example()
 
     def create_db(self):
+        self.log.info('creating database tables.')
         c = self.conn.cursor()
         c.execute('''create table numbex_owners (
             name text primary key)''')
@@ -177,12 +178,21 @@ class Database(object):
         cursor = self.conn.cursor()
         num2str = self._numeric2string
         now = datetime.now()
+        self.log.info("update data - %s rows", len(data))
         for row in data:
             ns, ne = int(row[0]), int(row[1])
-            self.log.info('*** %s', row)
+            self.log.info('processing %s', row)
+            do_insert = True
             for ovl in self.overlapping_ranges(int(row[0]), int(row[1])):
                 os, oe = int(ovl[0]), int(ovl[1])
-                if os >= ns and os <= ne and oe >= ne: # left overlap
+                # special case: new == old; update DSA signature
+                # set signature to '' otherwise
+                if os == ns and oe == ne:
+                    self.log.info('equal ovl %s %s', ovl[0], ovl[1])
+                    self.set_range(cursor, ovl[0], ovl[0], ovl[1], row[4],
+                            row[5])
+                    do_insert = False
+                elif os >= ns and os <= ne and oe >= ne: # left overlap
                     self.log.info('left ovl %s %s',ovl[0],ovl[1])
                     self.set_range(cursor, ovl[0], num2str(ne+1), ovl[1], now)
                 elif oe >= ns and oe <= ne and os <= ns: # right overlap
@@ -196,15 +206,18 @@ class Database(object):
                     old = self.get_range(cursor, ovl[0])
                     self.set_range(cursor, ovl[0], ovl[0], num2str(ns-1), now)
                     self.insert_range(cursor, num2str(ne+1), ovl[1],
-                            old[2], now)
-            row[3] = now
-            self.insert_range(cursor, *row)
+                            old[2], old[3], now, '', safe=True)
+            if do_insert:
+                row = list(row)
+                row[4] = now
+                self.insert_range(cursor, safe=True, *row)
         self.conn.commit()
         cursor.close()
+        self.log.info("update data complete")
         return True
 
     def overlapping_ranges(self, start, end):
-        assert start <= end
+        assert int(start) <= int(end)
         c = self.conn.cursor()
         c.execute('''select start, end
                 from numbex_ranges
@@ -223,18 +236,20 @@ class Database(object):
                 from numbex_ranges where start = ?''',
                 [start]))[0]
 
-    def set_range(self, cursor, start, newstart, newend, date_changed):
+    def set_range(self, cursor, start, newstart, newend, date_changed, sig=''):
         ns = int(newstart)
         ne = int(newend)
         self.log.info('set %s => %s %s',start,newstart,newend)
         assert ns <= ne
         cursor.execute('''update numbex_ranges
-                set start = ?, end = ?, _s = ?, _e = ?, date_changed = ?
+                set start = ?, end = ?, _s = ?, _e = ?, date_changed = ?,
+                signature = ?
                 where start = ?''',
-                [newstart, newend, ns, ne, date_changed, start])
+                [newstart, newend, ns, ne, date_changed, sig, start])
         return True
 
-    def insert_range(self, cursor, start, end, sip, owner, date_changed, sig):
+    def insert_range(self, cursor, start, end, sip, owner, date_changed, sig,
+                safe=True):
         ns = int(start)
         ne = int(end)
         if isinstance(date_changed, str):
@@ -242,7 +257,7 @@ class Database(object):
                 date_changed = date_changed[:-7]
             date_changed = datetime.strptime(date_changed, "%Y-%m-%dT%H:%M:%S")
         ovl = self.overlapping_ranges(start, end)
-        if ovl:
+        if safe and ovl:
             raise ValueError("cannot insert range %s-%s: overlaps with %s"%
                 (start, end, str(ovl)))
         self.log.info('insert %s %s',start,end)
