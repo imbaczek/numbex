@@ -82,22 +82,19 @@ class TestDBUpdateData(unittest.TestCase):
     def singleTearDown(self):
         self.db.drop_db()
 
-    def test_equal_overlap(self):
-        self.singleSetUp()
-        data = [(u'+48581000', u'+48581999', u'sip.freeconet.pl',
-            u'freeconet', datetime.datetime.now(), u'placeholder sig')]
-        self.db.update_data(data)
-        r = self.db.get_data_all()
-        self.assertEqual(data, r)
-        self.singleTearDown()
-
-
     def update_data_test(self, data, expected):
         self.db.update_data(data)
         # we'll have to ignore the mdate
         result = [[s, e, sip, owner, None, sig] 
                 for s, e, sip, owner, mdate, sig in self.db.get_data_all()]
         self.assertEqual(sorted(result, key=lambda x: int(x[0])), expected)
+
+    def test_equal_overlap(self):
+        self.singleSetUp()
+        data = [['+48581000', u'+48581999', u'sip.freeconet.pl',
+            u'freeconet', None, u'placeholder sig']]
+        self.update_data_test(data, data)
+        self.singleTearDown()
 
     def test_inner_overlap(self):
         self.singleSetUp()
