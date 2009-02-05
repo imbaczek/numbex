@@ -26,6 +26,12 @@ class TestSignatures(unittest.TestCase):
         s1 = crypto.sign_csv_record(self.dsa, v1)
         self.assert_(crypto.check_csv_signature(self.dsa, s1, v1))
 
+    def test_invalid_signature(self):
+        v = ['+48581234', '+48581999', 'sip.freeconet.pl', 'freeconet', datetime.datetime.now()]
+        self.assertFalse(crypto.check_signature(self.dsa, 'this is an invalid signature', *v))
+        self.assertFalse(crypto.check_signature(self.dsa, 'not base64!', *v))
+
+
 
 if __name__ == '__main__':
     unittest.main()

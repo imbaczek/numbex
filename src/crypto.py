@@ -1,4 +1,6 @@
 import csv
+import logging
+import binascii
 from M2Crypto import DSA, BIO, EVP
 try:
     from cStringIO import StringIO
@@ -40,9 +42,13 @@ def check_csv_signature(dsapub, sig, msg):
     md = EVP.MessageDigest('sha1')
     md.update(msg)
     digest = md.final()
-    r, s = sig.split()
-    r = r.decode('base64')
-    s = s.decode('base64')
+    try:
+        r, s = sig.split()
+        r = r.decode('base64')
+        s = s.decode('base64')
+    except (ValueError, binascii.Error):
+        logging.warn('invalid signature: %s', sig)
+        return False
     return dsapub.verify(digest, r, s)
 
 def parse_pub_key(pubstr):
