@@ -77,3 +77,10 @@ def parse_priv_key(privstr):
         raise ValueError("public key didn't start with '-----BEGIN ANY PRIVATE KEY-----'")
     mem = BIO.MemoryBuffer(privstr)
     return DSA.load_key_bio(mem)
+
+
+def extract_pub_key(dsa):
+    mem = BIO.MemoryBuffer()
+    if not dsa.save_pub_key_bio(mem):
+        raise ValueError('public key not generated')
+    return mem.getvalue()

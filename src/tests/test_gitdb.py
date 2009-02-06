@@ -61,9 +61,10 @@ class NumbexDBImportTest(unittest.TestCase):
 
     def testImportSimple(self):
         # signature generated from key in database.py
-        data = [['+48581000', u'+48581999', u'sip.freeconet.pl',
+        data = [[u'+48581000', u'+48581999', u'sip.freeconet.pl',
             u'freeconet', datetime.datetime(2009, 02, 02, 02, 02, 02),
-            'AAAAFAwJjf1UG1sj4+ox69rRpPmIA5Lc AAAAFBWVYnhMnXXrebHVK0IW2Dtw1i6l']]
+            'AAAAFQCqNJnApi3/eDHb8jLqZptQ3Bn1Dg== AAAAFFe29PtuKNgB5wuC+S51q6ToBLuw'
+]]
         self.assert_(self.repo.import_data(data))
 
 

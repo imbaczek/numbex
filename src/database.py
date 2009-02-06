@@ -123,7 +123,8 @@ W7d77Yq4f2BRkGFp/2Jz
         for o in owners:
             c.execute(ownq, [o])
             priv = self._example_privkeys[o]
-            dsa, pub = crypto.generate_dsa_key_pair_from_privkey(priv)
+            dsa = crypto.parse_priv_key(priv)
+            pub = crypto.extract_pub_key(dsa)
             f = file(o+'.priv.pem', 'w')
             f.write(priv)
             f.close()
