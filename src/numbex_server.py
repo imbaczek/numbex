@@ -48,9 +48,17 @@ class MyNumbexService(NumbexServiceService):
     def soap_receiveUpdates(self, ps, **kw):
         request, response = NumbexServiceService.soap_receiveUpdates(self, ps, **kw)
         data = request._csv
+        # check validity of DSA signatures
         l = list(csv.reader(StringIO(data)))
-        self.db.update_data(l)
-        response._return = True
+        if not self.db.check_data_signatures(l):
+            raise ValueError('signatures invalid')
+        retval = self.db.update_data(l)
+        response._return = retval
+        return request, response
+
+    def soap_getUnsigned(self, ps, **kw):
+        request, response = NumbexServiceService.soap_getUnsigned(self, ps, **kw)
+        response._return = self._transform_to_csv(self.db.get_data_unsigned())
         return request, response
 
 def main():
