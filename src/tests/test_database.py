@@ -92,8 +92,10 @@ class TestDBUpdateData(unittest.TestCase):
     def test_equal_overlap(self):
         self.singleSetUp()
         data = [['+48581000', u'+48581999', u'sip.freeconet.pl',
+            u'freeconet', datetime.datetime.now(), u'placeholder sig']]
+        result = [['+48581000', u'+48581999', u'sip.freeconet.pl',
             u'freeconet', None, u'placeholder sig']]
-        self.update_data_test(data, data)
+        self.update_data_test(data, result)
         self.singleTearDown()
 
     def test_inner_overlap(self):
