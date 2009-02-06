@@ -178,6 +178,8 @@ class Database(object):
         cursor = self.conn.cursor()
         try:
             for row in data:
+                if len(row) != 6:
+                    return False
                 if not self.check_record_signature(cursor, *row):
                     return False
             return True
@@ -185,10 +187,20 @@ class Database(object):
             cursor.close()
 
     def update_data(self, data):
+        self.log.info("update data - %s rows", len(data))
+        # check for overlaps
+        data.sort(key=lambda x: int(x[0]))
+        prevs, preve = 0, 0
+        for row in data:
+            s, e = int(row[0]), int(row[1])
+            if prevs <= s and preve >= s:
+                self.log.info("update data - invalid data %s %s, %s %s",
+                        prevs, preve, s, e)
+                return False
+            prevs, preve = s, e
         cursor = self.conn.cursor()
         num2str = self._numeric2string
         now = datetime.now()
-        self.log.info("update data - %s rows", len(data))
         for row in data:
             ns, ne = int(row[0]), int(row[1])
             self.log.info('processing %s', row)
