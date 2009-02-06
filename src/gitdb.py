@@ -1,15 +1,20 @@
-import gitshelve
+import logging
 from string import Template
+
+import gitshelve
+
+import crypto
 
 class NumbexDBError(Exception):
     def __init__(self, *args, **kwargs):
         Exception.__init__(self, *args, **kwargs)
 
 class NumbexRepo(object):
-    def __init__(self, repodir):
+    def __init__(self, repodir, pubkey_getter):
         self.repodir = repodir
         if repodir:
             self.shelf = gitshelve.open(repodir)
+        self.get_pubkey = pubkey_getter
     
     def make_repo_path(self, number):
         '''transform a string like this:
@@ -45,11 +50,28 @@ Signature: $sig''')
 
     def import_data(self, data):
         '''data format: iterator of records in format produced by parse_record'''
+        keycache = {}
+        for row in data:
+            if len(row) != 6:
+                logging.warning("invalid record %s", row)
+                return False
+            owner = row[3]
+            if not owner in keycache:
+                keycache[owner] = self.get_pubkey(owner)
+                if not keycache[owner]:
+                    logging.warning("no key found for %s", row)
+                    return False
+            if not crypto.check_signature(keycache[owner], row[-1], *row[:-1]):
+                logging.warning("invalid signature %s", row)
+                return False
+
         shelf = self.shelf
         for r in data:
-            start, end, sip, owner, mdate, rsasig = data
+            start, end, sip, owner, mdate, rsasig = r
             num = self.make_repo_path(start)
             shelf[num] = self.make_record(start, end, sip, owner, mdate, rsasig)
+        shelf.sync()
+        return True
 
     def export_data(self, data):
         pass
