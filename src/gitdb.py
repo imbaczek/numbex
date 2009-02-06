@@ -14,7 +14,7 @@ class NumbexRepo(object):
         self.repodir = repodir
         if repodir:
             self.shelf = gitshelve.open(repodir)
-        self.get_pubkey = pubkey_getter
+        self.get_pubkeys = pubkey_getter
     
     def make_repo_path(self, number):
         '''transform a string like this:
@@ -57,13 +57,14 @@ Signature: $sig''')
                 return False
             owner = row[3]
             if not owner in keycache:
-                keycache[owner] = self.get_pubkey(owner)
+                keycache[owner] = self.get_pubkeys(owner)
                 if not keycache[owner]:
                     logging.warning("no key found for %s", row)
                     return False
-            if not crypto.check_signature(keycache[owner], row[-1], *row[:-1]):
-                logging.warning("invalid signature %s", row)
-                return False
+            for key in keycache[owner]:
+                if not crypto.check_signature(key, row[-1], *row[:-1]):
+                    logging.warning("invalid signature %s", row)
+                    return False
 
         shelf = self.shelf
         for r in data:
