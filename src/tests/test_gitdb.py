@@ -33,7 +33,8 @@ Signature:'''
 
     def testParseRecord(self):
         f = self.repo.parse_record
-        r = ['+48581234', '+48581999', 'sip.freeconet.pl', 'freeconet', '2009-02-02T20:00:00', '']
+        r = ['+48581234', '+48581999', 'sip.freeconet.pl', 'freeconet',
+                datetime.datetime(2009, 2, 2, 20), '']
         v = '''Range-start: +48581234
 Range-end: +48581999
 Sip-address: sip.freeconet.pl
