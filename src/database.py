@@ -2,6 +2,7 @@ import sqlite3
 import os.path
 import csv
 import logging
+import operator
 from datetime import datetime
 
 import crypto
@@ -131,6 +132,7 @@ class Database(object):
                 sig = crypto.sign_record(keys[r[3]], *r)
             else:
                 sig = ''
+            assert isinstance(r[4], datetime)
             c.execute('''insert into numbex_ranges (start, end, sip, owner, date_changed, signature, _s, _e)
                 values (?, ?, ?, ?, ?, ?, ?, ?)''', (list(r)+[sig, int(r[0]), int(r[1])]))
         self.conn.commit()
@@ -221,10 +223,10 @@ class Database(object):
                         self.log.info('equal ovl %s %s', ovl[0], ovl[1])
                         self.set_range(cursor, ovl[0], *row)
                     do_insert = False
-                elif os >= ns and os <= ne and oe >= ne: # left overlap
+                elif os >= ns and os <= ne and oe > ne: # left overlap
                     self.log.info('left ovl %s %s',ovl[0],ovl[1])
                     self.set_range_small(cursor, ovl[0], num2str(ne+1), ovl[1], now)
-                elif oe >= ns and oe <= ne and os <= ns: # right overlap
+                elif oe >= ns and oe <= ne and os < ns: # right overlap
                     self.log.info('right ovl %s %s',ovl[0],ovl[1])
                     self.set_range_small(cursor, ovl[0], ovl[0], num2str(ns-1), now)
                 elif os >= ns and oe <= ne: # complete overlap, old is smaller
@@ -267,8 +269,10 @@ class Database(object):
     def set_range_small(self, cursor, start, newstart, newend, date_changed, sig=''):
         ns = int(newstart)
         ne = int(newend)
+        date_changed = self.convert_date(date_changed)
         self.log.info('set small %s => %s %s',start,newstart,newend)
         assert ns <= ne
+        assert isinstance(date_changed, datetime)
         cursor.execute('''update numbex_ranges
                 set start = ?, end = ?, _s = ?, _e = ?, date_changed = ?,
                 signature = ?
@@ -280,7 +284,9 @@ class Database(object):
         ns = int(newstart)
         ne = int(newend)
         self.log.info('set full %s => %s %s',start,newstart,newend)
+        date_changed = self.convert_date(date_changed)
         assert ns <= ne
+        assert isinstance(date_changed, datetime)
         cursor.execute('''update numbex_ranges
                 set start = ?, end = ?, _s = ?, _e = ?, sip = ?,
                 owner = ?, date_changed = ?, signature = ?
@@ -292,10 +298,7 @@ class Database(object):
                 safe=True):
         ns = int(start)
         ne = int(end)
-        if isinstance(date_changed, str):
-            if '.' in date_changed:
-                date_changed = date_changed[:-7]
-            date_changed = datetime.strptime(date_changed, "%Y-%m-%dT%H:%M:%S")
+        date_changed = self.convert_date(date_changed)
         ovl = self.overlapping_ranges(start, end)
         if safe and ovl:
             raise ValueError("cannot insert range %s-%s: overlaps with %s"%
@@ -315,3 +318,11 @@ class Database(object):
                 where start = ?''',
                 [start])
         return True
+
+    def convert_date(self, isodate):
+        if isinstance(isodate, str):
+            if '.' in isodate:
+                isodate = isodate[:-7]
+            isodate = datetime.strptime(isodate, "%Y-%m-%dT%H:%M:%S")
+        return isodate
+
