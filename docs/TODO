@@ -1,9 +1,6 @@
 TODO
 ----
 
-baza:
-* m2crypto DES.DES:
-- sprawdzanie podpisow przy imporcie nowych danych
 
 obsluga gita:
 - napisac obsluge gitshelve do numerow
@@ -33,6 +30,9 @@ runner:
 
 DONE
 ----
+baza:
+* m2crypto DES.DES:
+- sprawdzanie podpisow przy imporcie nowych danych
 - dodac przykladowe dane
 - dodac pole na podpis
 - dodac pole na wlasciciela
