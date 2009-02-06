@@ -1,9 +1,11 @@
 import logging
+import datetime
 from string import Template
 
 import gitshelve
 
 import crypto
+import utils
 
 class NumbexDBError(Exception):
     def __init__(self, *args, **kwargs):
@@ -25,7 +27,11 @@ class NumbexRepo(object):
             number += ' '
         return '/'.join(''.join(x) for x in zip(*[iter(number)]*2)).strip()
 
-    def make_record(self, rangestart, rangeend, sip, owner, date_modified, sig):
+    def make_record(self, rangestart, rangeend, sip, owner, mdate, sig):
+        if isinstance(mdate, datetime.datetime):
+            date_modified = mdate.isoformat()
+        else:
+            date_modified = mdate
         tmpl = Template('''Range-start: $rangestart
 Range-end: $rangeend
 Sip-address: $sip
@@ -43,8 +49,9 @@ Signature: $sig''')
             pre = pre.lower().strip()
             d[pre] = post.strip()
         try:
-            return [d[x] for x in ('range-start', 'range-end', 'sip-address',
+            ret = [d[x] for x in ('range-start', 'range-end', 'sip-address',
                     'owner', 'date-modified', 'signature')]
+            ret[4] = utils.parse_datetime_iso(ret[4])
         except KeyError:
             raise NumbexDBError('key not found: '+x)
 
@@ -78,6 +85,10 @@ Signature: $sig''')
         shelf.sync()
         return True
 
+    def get_range(self, start):
+        path = self.make_repo_path(start)
+        return self.parse_record(self.shelf[path])
+
     def export_data(self, data):
         pass
 
@@ -89,3 +100,6 @@ Signature: $sig''')
 
     def merge(self, branch):
         pass
+
+    def sync(self):
+        return self.shelf.sync()

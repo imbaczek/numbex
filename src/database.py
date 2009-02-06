@@ -6,6 +6,7 @@ import time
 from datetime import datetime
 
 import crypto
+import utils
 
 class Database(object):
     def __init__(self, filename, logger=None, loghandler=None, fill_example=None):
@@ -313,7 +314,7 @@ W7d77Yq4f2BRkGFp/2Jz
     def set_range_small(self, cursor, start, newstart, newend, date_changed, sig=''):
         ns = int(newstart)
         ne = int(newend)
-        date_changed = self.convert_date(date_changed)
+        date_changed = utils.parse_datetime_iso(date_changed)
         self.log.info('set small %s => %s %s',start,newstart,newend)
         assert ns <= ne
         assert isinstance(date_changed, datetime)
@@ -328,7 +329,7 @@ W7d77Yq4f2BRkGFp/2Jz
         ns = int(newstart)
         ne = int(newend)
         self.log.info('set full %s => %s %s',start,newstart,newend)
-        date_changed = self.convert_date(date_changed)
+        date_changed = utils.parse_datetime_iso(date_changed)
         assert ns <= ne
         assert isinstance(date_changed, datetime)
         cursor.execute('''update numbex_ranges
@@ -342,7 +343,7 @@ W7d77Yq4f2BRkGFp/2Jz
                 safe=True):
         ns = int(start)
         ne = int(end)
-        date_changed = self.convert_date(date_changed)
+        date_changed = utils.parse_datetime_iso(date_changed)
         ovl = self.overlapping_ranges(start, end)
         if safe and ovl:
             raise ValueError("cannot insert range %s-%s: overlaps with %s"%
@@ -362,11 +363,4 @@ W7d77Yq4f2BRkGFp/2Jz
                 where start = ?''',
                 [start])
         return True
-
-    def convert_date(self, isodate):
-        if isinstance(isodate, str):
-            if '.' in isodate:
-                isodate = isodate[:-7]
-            isodate = datetime.strptime(isodate, "%Y-%m-%dT%H:%M:%S")
-        return isodate
 

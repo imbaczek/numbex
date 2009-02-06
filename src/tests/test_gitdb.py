@@ -22,23 +22,23 @@ class NumbexDBPrimitiveTest(unittest.TestCase):
 
     def testMakeRecord(self):
         f = self.repo.make_record
-        v = ['+48581234', '+48581999', 'sip.freeconet.pl', 'freeconet', '20090202T20:00:00', '']
+        v = ['+48581234', '+48581999', 'sip.freeconet.pl', 'freeconet', '2009-02-02T20:00:00', '']
         r = '''Range-start: +48581234
 Range-end: +48581999
 Sip-address: sip.freeconet.pl
 Owner: freeconet
-Date-modified: 20090202T20:00:00
+Date-modified: 2009-02-02T20:00:00
 Signature:'''
         self.assertEqual(f(*v).strip(), r)
 
     def testParseRecord(self):
         f = self.repo.parse_record
-        r = ['+48581234', '+48581999', 'sip.freeconet.pl', 'freeconet', '20090202T20:00:00', '']
+        r = ['+48581234', '+48581999', 'sip.freeconet.pl', 'freeconet', '2009-02-02T20:00:00', '']
         v = '''Range-start: +48581234
 Range-end: +48581999
 Sip-address: sip.freeconet.pl
 Owner: freeconet
-Date-modified: 20090202T20:00:00
+Date-modified: 2009-02-02T20:00:00
 Signature:'''
         self.assertEqual(f(v), r)
 
@@ -66,6 +66,8 @@ class NumbexDBImportTest(unittest.TestCase):
             'AAAAFQCqNJnApi3/eDHb8jLqZptQ3Bn1Dg== AAAAFFe29PtuKNgB5wuC+S51q6ToBLuw'
 ]]
         self.assert_(self.repo.import_data(data))
+        self.repo.sync()
+        self.assertEqual(self.repo.get_range('+48581000'), data[0])
 
 
 
