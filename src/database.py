@@ -166,15 +166,27 @@ class Database(object):
         c.close()
         return result
 
+    def get_public_keys(self, owner):
+        c = self.conn.cursor()
+        keys = self._get_pub_keys(c, owner)
+        c.close()
+        return list(keys)
+
+    def _get_pub_keys(self, cursor, owner):
+        keyq = 'select pubkey from numbex_pubkeys where owner = ?'
+        return (x for x, in cursor.execute(keyq, [owner]))
+
     def _numeric2string(self, num):
         return '+%s'%num
 
     def check_record_signature(self, cur, start, end, sip, owner, mdate, sig):
-        keyq = 'select pubkey from numbex_pubkeys where owner = ?'
-        key = list(cur.execute(keyq, [owner]))[0][0]
-        dsapub = crypto.parse_pub_key(key.encode('ascii'))
-        return crypto.check_signature(dsapub, sig,
-                start, end, sip, owner, mdate)
+        keys = self._get_pub_keys(cur, owner)
+        for key in keys:
+            dsapub = crypto.parse_pub_key(key.encode('ascii'))
+            if crypto.check_signature(dsapub, sig,
+                    start, end, sip, owner, mdate):
+                return True
+        return False
 
     def check_data_signatures(self, data):
         cursor = self.conn.cursor()
