@@ -1,6 +1,7 @@
 import csv
 import logging
 import binascii
+import datetime
 from M2Crypto import DSA, BIO, EVP
 try:
     from cStringIO import StringIO
@@ -21,7 +22,10 @@ def generate_dsa_key_pair(bits=1024):
 def make_csv_record(start, end, sip, owner, mdate):
     f = StringIO()
     writer = csv.writer(f)
-    writer.writerow([start, end, sip, owner, mdate.isoformat()])
+    if isinstance(mdate, datetime.datetime):
+        writer.writerow([start, end, sip, owner, mdate.isoformat()])
+    else:
+        writer.writerow([start, end, sip, owner, mdate])
     return f.getvalue().strip()
 
 def sign_record(dsa, start, end, sip, owner, mdate):
@@ -58,3 +62,12 @@ def parse_pub_key(pubstr):
         raise ValueError("public key didn't start with '-----BEGIN PUBLIC KEY-----'")
     mem = BIO.MemoryBuffer(pubstr)
     return DSA.load_pub_key_bio(mem)
+
+def parse_priv_key(privstr):
+    if not isinstance(privstr, str):
+        raise TypeError('str argument required')
+    if not privstr.startswith('-----BEGIN DSA PRIVATE KEY-----') \
+            and not privstr.startswith('-----BEGIN RSA PRIVATE KEY-----'):
+        raise ValueError("public key didn't start with '-----BEGIN ANY PRIVATE KEY-----'")
+    mem = BIO.MemoryBuffer(privstr)
+    return DSA.load_key_bio(mem)
