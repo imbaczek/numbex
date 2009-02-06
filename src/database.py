@@ -247,7 +247,7 @@ W7d77Yq4f2BRkGFp/2Jz
         now = datetime.now()
         for row in data:
             ns, ne = int(row[0]), int(row[1])
-            self.log.info('processing %s', row)
+            self.log.info('processing [%s]', ', '.join(map(str, row)))
             do_insert = True
             overlaps = self.overlapping_ranges(int(row[0]), int(row[1]))
             for ovl in overlaps:
