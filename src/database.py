@@ -85,6 +85,34 @@ class Database(object):
         self.log.info('done.')
         cursor.close()
 
+
+    _example_privkeys = {
+            'freeconet': '''-----BEGIN DSA PRIVATE KEY-----
+MIIBugIBAAKBgQD3/8OnlvU4Zg9/qKYlhcsRl74g4nSEEkrGEsNdbhiqrnGOusus
+B45LZyQkzEG39Z+WfyCLiVGHdJVuYk/YmNEVv9Fd33yLWyc4Xv6rhYUEk29/IksM
+pQaxUjamwpu/QKnAt4t6yNT3y0BzwQTiDMPDRNK8MPZUF1pb0itCKko2DwIVAKzg
+KetG4mzrlwTLyRf8DRq/4e2nAoGAJ0IrPkybSdRW4+VvfpBUbPOSLjeo0tcSDN47
+wTFfvhGedLk/fZlSB+cJqIfyQx+RIxMroHl5hYNteR5pkvnfjD7KgQN1eUW4YJz7
+IH1MFEFJmhM41t6xZEndSDwmgWZDD6sp+3MIWGpmsRdOzMVQGZLtqs4x3gt6mwiy
+oA7NmpUCgYAFu9Netm2BY1+tYcFaNNhkpVciwYWzEmSAFvFnJajZj1FUsMs2DOtN
+GPVkUmKcpL6i1auwRtylEknb2h7Ha6DJKoUeoT7fe0wfhyk44dOcbBV15wYDceOT
+XigYaGk3Oi7KR1wdL6sAU0F25F3x+bmYKCV9SvHmUK4XnZ2O4Q0SSAIUXevStm+z
+YAQ2Vb07qZIwQ4flH0U=
+-----END DSA PRIVATE KEY-----''',
+            'telarena': '''-----BEGIN DSA PRIVATE KEY-----
+MIIBuwIBAAKBgQC9ot9XYwO4VZLtwFT20KdfEBld5acIKeth5EttDkCZtMFn5lx2
+pKtK+mY4sJhPXjb1cL79b5odNQp1ulX77i4qgBsTRJWIRHGLPSMxYcO4af+JchsX
+VIcfWE5V/+BdH8BzUNgu7QpE8k+FNcqgMxQpuTJzwyBTcf9yElrBqtj1vQIVAOKk
+/AGmUHa6c61qf4TV3J8JPyeZAoGAR/Of2ZA1b3OEpjT6x7aeoiCtjSeedzT4Mh0i
+1LEwLYky941N+k9L+S12MPTW32joS3rrYFrNURnQUZXHrGJ/FUgjmWoDphRV943R
+dSTR/ylOR7n4auwkEciva8Li+KcjNzgBWPHjVXJStGglZrurx7nPAC7BOGYznSp/
+MhO2dV4CgYBgq1w2E5JqJWwWzX7bu9E8aSxhbkC2uaROO9unYjZX13xd9arx70TT
+6QRoivNcmtzxAgxL97knGcxGCpBh9S2OpRK787IoaK4WDKCZSTpYOVGs+okCgJiD
+J/br8IbfGYoQ0l72Z6ZHwDZMB0E7eNT6QtalgPMncWtbVwnIAGBlFQIVANGyh0sf
+W7d77Yq4f2BRkGFp/2Jz
+-----END DSA PRIVATE KEY-----''',
+        }
+
     def _populate_example_owners(self, c):
         from M2Crypto import DSA, BIO
 
@@ -94,7 +122,8 @@ class Database(object):
         keyq = 'insert into numbex_pubkeys (owner, pubkey) values (?, ?)'
         for o in owners:
             c.execute(ownq, [o])
-            dsa, priv, pub = crypto.generate_dsa_key_pair(1024)
+            priv = self._example_privkeys[o]
+            dsa, pub = crypto.generate_dsa_key_pair_from_privkey(priv)
             f = file(o+'.priv.pem', 'w')
             f.write(priv)
             f.close()

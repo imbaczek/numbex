@@ -18,6 +18,12 @@ def generate_dsa_key_pair(bits=1024):
     dsa.save_key_bio(priv, cipher=None)
     return dsa, priv.read(), pub.read()
 
+def generate_dsa_key_pair_from_privkey(pemstr):
+    dsa = parse_priv_key(pemstr)
+    dsa.gen_key()
+    pub = BIO.MemoryBuffer()
+    dsa.save_pub_key_bio(pub)
+    return dsa, pub.read()
 
 def make_csv_record(start, end, sip, owner, mdate):
     f = StringIO()
