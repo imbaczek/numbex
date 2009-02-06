@@ -142,6 +142,26 @@ class TestDBUpdateData(unittest.TestCase):
         self.update_data_test(data, expected)
         self.singleTearDown()
 
+    def test_right_outer_overlap(self):
+        self.singleSetUp()
+        data = [(u'+48581000', u'+48582000', u'new.freeconet.pl',
+            u'freeconet', datetime.datetime.now(), u'some sig')]
+        expected = [
+        [u'+48581000',u'+48582000', u'new.freeconet.pl',u'freeconet',None,u'some sig'],
+        ]
+        self.update_data_test(data, expected)
+        self.singleTearDown()
+
+    def test_left_outer_overlap(self):
+        self.singleSetUp()
+        data = [(u'+4858999', u'+48581999', u'new.freeconet.pl',
+            u'freeconet', datetime.datetime.now(), u'some sig')]
+        expected = [
+        [u'+4858999',u'+48581999', u'new.freeconet.pl',u'freeconet',None,u'some sig'],
+        ]
+        self.update_data_test(data, expected)
+        self.singleTearDown()
+
 
 if __name__ == '__main__':
     unittest.main()
