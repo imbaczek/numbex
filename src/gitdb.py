@@ -57,14 +57,18 @@ Signature: $sig''')
                 return False
             owner = row[3]
             if not owner in keycache:
-                keycache[owner] = self.get_pubkeys(owner)
+                pemkeys = [k.encode('ascii') if isinstance(k, unicode) else k
+                            for k in self.get_pubkeys(owner)]
+                keycache[owner] = [crypto.parse_pub_key(k) for k in pemkeys]
                 if not keycache[owner]:
                     logging.warning("no key found for %s", row)
                     return False
-            for key in keycache[owner]:
-                if not crypto.check_signature(key, row[-1], *row[:-1]):
-                    logging.warning("invalid signature %s", row)
-                    return False
+            checked_data = row[:-1]
+            sig = row[-1]
+            if not any(crypto.check_signature(key, row[-1], *row[:-1])
+                    for key in keycache[owner]):
+                logging.warning("invalid signature %s", row)
+                return False
 
         shelf = self.shelf
         for r in data:
