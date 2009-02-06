@@ -2,7 +2,7 @@ import sqlite3
 import os.path
 import csv
 import logging
-import operator
+import time
 from datetime import datetime
 
 import crypto
@@ -79,11 +79,13 @@ class Database(object):
 
     def _populate_example(self):
         self.log.info('generating example data...')
+        starttime = time.clock()
         cursor = self.conn.cursor()
         keys = self._populate_example_owners(cursor)
         self._populate_example_ranges(cursor, keys)
-        self.log.info('done.')
         cursor.close()
+        endtime = time.clock()
+        self.log.info('done, %.3f.', endtime-starttime)
 
 
     _example_privkeys = {
@@ -114,8 +116,6 @@ W7d77Yq4f2BRkGFp/2Jz
         }
 
     def _populate_example_owners(self, c):
-        from M2Crypto import DSA, BIO
-
         owners = ['freeconet', 'telarena']
         keys = {}
         ownq = 'insert into numbex_owners (name) values (?)'
@@ -231,6 +231,7 @@ W7d77Yq4f2BRkGFp/2Jz
 
     def update_data(self, data):
         self.log.info("update data - %s rows", len(data))
+        starttime = time.clock()
         # check for overlaps
         data.sort(key=lambda x: int(x[0]))
         prevs, preve = 0, 0
@@ -284,7 +285,8 @@ W7d77Yq4f2BRkGFp/2Jz
                 self.insert_range(cursor, safe=True, *row)
         self.conn.commit()
         cursor.close()
-        self.log.info("update data complete")
+        endtime = time.clock()
+        self.log.info("update data complete, %.3f s", endtime-starttime)
         return True
 
     def overlapping_ranges(self, start, end):
