@@ -52,6 +52,7 @@ Signature: $sig''')
             ret = [d[x] for x in ('range-start', 'range-end', 'sip-address',
                     'owner', 'date-modified', 'signature')]
             ret[4] = utils.parse_datetime_iso(ret[4])
+            return ret
         except KeyError:
             raise NumbexDBError('key not found: '+x)
 
