@@ -90,8 +90,15 @@ Signature: $sig''')
         path = self.make_repo_path(start)
         return self.parse_record(self.shelf[path])
 
-    def export_data(self, data):
+    def export_data_since(self, since):
         pass
+
+    def export_data_all(self):
+        ret = []
+        for k in self.shelf:
+            ret.append(self.parse_record(self.shelf[k]))
+        ret.sort(key=lambda x: int(x[0]))
+        return ret
 
     def export_diff(self, rev1, rev2):
         pass

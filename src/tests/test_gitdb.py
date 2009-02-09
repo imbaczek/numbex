@@ -69,6 +69,8 @@ class NumbexDBImportTest(unittest.TestCase):
         self.assert_(self.repo.import_data(data))
         self.repo.sync()
         self.assertEqual(self.repo.get_range('+48581000'), data[0])
+        self.assertEqual(self.repo.export_data_all(), data)
+
 
 
 
