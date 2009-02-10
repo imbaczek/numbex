@@ -12,10 +12,11 @@ class NumbexDBError(Exception):
         Exception.__init__(self, *args, **kwargs)
 
 class NumbexRepo(object):
-    def __init__(self, repodir, pubkey_getter):
+    def __init__(self, repodir, pubkey_getter, repobranch='numbex'):
+        self.repobranch = repobranch
         self.repodir = repodir
-        if repodir:
-            self.shelf = gitshelve.open(repodir)
+        if self.repodir and self.repobranch:
+            self.shelf = gitshelve.open(self.repobranch, repository=self.repodir)
         self.get_pubkeys = pubkey_getter
     
     def make_repo_path(self, number):
@@ -103,11 +104,29 @@ Signature: $sig''')
     def export_diff(self, rev1, rev2):
         pass
 
-    def fetch_from_uri(self, uri):
-        pass
+    def add_remote(self, remote, uri):
+        return self.shelf.git('remote', 'add', remote, uri)
 
-    def merge(self, branch):
-        pass
+    def fetch_from_remote(self, remote):
+        return self.shelf.git('fetch', remote)
+
+    def merge(self, to_merge):
+        # make a tmp repository with a working tree
+        # fetch, checkout, merge, push, delete
+        # handle conflicts somehow...
+        tmpdir = '/tmp/tmprepo1'
+        integration = 'integration'
+        os.path.mkdir(tmpdir)
+        self.shelf.git('branch', integration, to_merge)
+        gitshelve.git('init', repository=tmpdir)
+        gitshelve.git('remote', 'add', 'origin', self.repodir, repository=tmpdir)
+        gitshelve.git('fetch', 'origin', repository=tmpdir)
+        gitshelve.git('checkout', '-b', self.repobranch, 'origin/'+self.repobranch, repository=tmpdir)
+        gitshelve.git('merge', integration, repository=tmpdir)
+        # XXX handle conflicts here
+        gitshelve.git('push', 'origin', self.repobranch, repository=tmpdir)
+        os.system('rm -rf %s'%tmpdir)
+
 
     def sync(self):
         return self.shelf.sync()
