@@ -115,6 +115,11 @@ Signature: $sig''')
     def fetch_from_remote(self, remote):
         return self.shelf.git('fetch', remote)
 
+    @staticmethod
+    def clone_uri(uri, destdir, origin_name):
+        return gitshelve.git('clone', '--bare', '-o', origin_name,
+                uri, destdir)
+
     def merge(self, to_merge, dont_push=False):
         # make a tmp repository with a working tree
         # fetch, checkout, merge, push, delete
