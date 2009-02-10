@@ -1,6 +1,8 @@
 import logging
 import datetime
 import socket
+import os
+import tempfile
 from string import Template
 
 import gitshelve
@@ -111,23 +113,66 @@ Signature: $sig''')
     def fetch_from_remote(self, remote):
         return self.shelf.git('fetch', remote)
 
-    def merge(self, to_merge):
+    def merge(self, to_merge, dont_push=False):
         # make a tmp repository with a working tree
         # fetch, checkout, merge, push, delete
         # handle conflicts somehow...
-        tmpdir = os.tempnam('/tmp', 'numbex-integration')
+        tmpdir = tempfile.mkdtemp(prefix='numbex-integration')
+        tmprepo = os.path.join(tmpdir, '.git')
         integration = 'integration'
-        os.path.mkdir(tmpdir)
-        self.shelf.git('branch', integration, to_merge)
-        gitshelve.git('init', repository=tmpdir)
-        gitshelve.git('remote', 'add', 'origin', self.repodir, repository=tmpdir)
-        gitshelve.git('fetch', 'origin', repository=tmpdir)
-        gitshelve.git('checkout', '-b', self.repobranch, 'origin/'+self.repobranch, repository=tmpdir)
-        gitshelve.git('merge', integration, repository=tmpdir)
-        # XXX handle conflicts here
-        gitshelve.git('push', 'origin', self.repobranch, repository=tmpdir)
-        os.system('rm -rf %s'%tmpdir)
+        try:
+            # create a local branch which we want to merge
+            self.shelf.git('branch', integration, to_merge)
+            gitshelve.git('init', repository=tmprepo)
+            gitshelve.git('remote', 'add', 'origin', self.repodir,
+                    repository=tmprepo)
+            gitshelve.git('fetch', 'origin', repository=tmprepo)
 
+            # prepare to merge
+            gitshelve.git('checkout', '-b', self.repobranch,
+                    'origin/'+self.repobranch, repository=tmprepo,
+                    worktree=tmpdir)
+            cwd = os.getcwd()
+            # GIT_WORK_TREE doesn't work with git merge (bug in git?)
+            os.chdir(tmpdir)
+            try:
+                mergeout = gitshelve.git('merge', 'origin/'+integration,
+                        repository=tmprepo, worktree=tmpdir)
+            except gitshelve.GitError, e:
+                if 'Automatic merge failed; fix conflicts and then commit the result.' in str(e):
+                    # handle conflicts here
+                    # git status fails with error code 128 for some reason
+                    # but generates required output
+                    status = gitshelve.git('status', repository=tmprepo,
+                            worktree=tmpdir, ignore_errors=True)
+                    for line in status.splitlines():
+                        if line.startswith('# '):
+                            break
+                        filename, status = line.rsplit(':', 1)
+                        filename = filename.strip()
+                        status = status.strip()
+                        if status == 'needs merge':
+                            self.handle_merge(os.path.normpath(filename))
+                else:
+                    # not a merge conflict, abort
+                    raise
+            finally:
+                os.chdir(cwd)
+            # push the results
+            if not dont_push:
+                gitshelve.git('push', 'origin', self.repobranch,
+                        repository=tmprepo)
+        finally:
+            print 'deleting',tmpdir
+            #os.system('rm -rf %s'%tmpdir)
+            # delete the local branch
+            try:
+                self.shelf.git('branch', '-D', integration)
+            except gitshelve.GitError:
+                pass
+
+    def handle_merge(self, filename):
+        print filename, 'needs merge'
 
     def sync(self):
         return self.shelf.commit('%s on %s'%(datetime.datetime.now(),

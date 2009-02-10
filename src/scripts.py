@@ -23,6 +23,7 @@ class TestRepo(object):
         self.db._populate_example()
         tmp1 = os.tempnam('/tmp', 'testrepo1')
         tmp2 = os.tempnam('/tmp', 'testrepo2')
+        print tmp1, tmp2
         self.repo1 = gitdb.NumbexRepo('/tmp/testrepo1', self.db.get_public_keys)
         self.repo2 = gitdb.NumbexRepo('/tmp/testrepo2', self.db.get_public_keys)
         self.setUpData()
@@ -68,6 +69,7 @@ class TestRepo(object):
         self.repo2.import_data([record2])
         self.repo2.sync()
         self.repo2.fetch_from_remote('repo1')
+        self.repo2.merge('repo1/'+self.repo1.repobranch)
 
     def tearDown(self):
         import os
