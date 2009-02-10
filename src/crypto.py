@@ -44,7 +44,7 @@ def sign_csv_record(dsa, msg):
     r, s = dsa.sign(digest)
     return '%s %s'%(r.encode('base64').strip(), s.encode('base64').strip())
 
-def check_signature(dsapub, sig, start, end, sip, owner, mdate):
+def check_signature(dsapub, sig, start, end, sip, owner, mdate, *args):
     return check_csv_signature(dsapub, sig,
                 make_csv_record(start, end, sip, owner, mdate))
 
