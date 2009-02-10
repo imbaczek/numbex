@@ -146,6 +146,7 @@ Signature: $sig''')
                 mergeout = gitshelve.git('merge', 'origin/'+integration,
                         repository=tmprepo, worktree=tmpdir)
             except gitshelve.GitError, e:
+                # check if merge failed due to a conflict or something else
                 if 'Automatic merge failed; fix conflicts and then commit the result.' in str(e):
                     # handle conflicts here
                     # git status fails with error code 128 for some reason
@@ -159,7 +160,11 @@ Signature: $sig''')
                         filename = filename.strip()
                         status = status.strip()
                         if status == 'needs merge':
-                            self.handle_merge(os.path.normpath(filename))
+                            self.handle_merge(os.path.abspath(filename))
+                            gitshelve.git('add', filename)
+                    gitshelve.git('commit', '-m', 'merge. %s on %s'%
+                            (datetime.datetime.now(), socket.getfqdn()),
+                            repository=tmprepo, worktree=tmpdir)
                 else:
                     # not a merge conflict, abort
                     raise
@@ -180,8 +185,63 @@ Signature: $sig''')
 
     def handle_merge(self, filename):
         print filename, 'needs merge'
+        f = file(filename)
+        contents = f.readlines()
+        f.close()
+        ver1 = []
+        ver2 = []
+        current = 'both'
+        startv1 = '<<<<<<<'
+        startboth = '>>>>>>>'
+        startv2 = '======='
+        for line in contents:
+            line = line.strip()
+            if line.startswith(startv1):
+                current = 'v1'
+                continue
+            elif line.startswith(startv2):
+                current = 'v2'
+                continue
+            elif line.startswith(startboth):
+                current = 'both'
+                continue
+            if current == 'both':
+                ver1.append(line)
+                ver2.append(line)
+            elif current == 'v1':
+                ver1.append(line)
+            else:
+                ver2.append(line)
+        v1 = '\n'.join(ver1)
+        v2 = '\n'.join(ver2)
+        rec1 = self.parse_record(v1)
+        rec2 = self.parse_record(v2)
+        # check signatures
+        if not any(crypto.check_signature(crypto.parse_pub_key(k.encode()),
+                rec1[5], *rec1)
+                for k in self.get_pubkeys(rec1[3])):
+            raise NumbexDBError('invalid signature on %s'%rec1)
+        if not any(crypto.check_signature(crypto.parse_pub_key(k.encode()),
+                rec2[5], *rec2)
+                for k in self.get_pubkeys(rec2[3])):
+            raise NumbexDBError('invalid signature on %s'%rec2)
+        # compare owners
+        if rec1[3] != rec2[3]:
+            raise NumbexDBError('cannot merge %s and %s - owners differ'%(rec1, rec2))
+        # choose the more recent version
+        from operator import itemgetter
+        merged = max(rec1, rec2, key=itemgetter(4))
+        mergedtxt = self.make_record(*merged)
+        f = file(filename, 'wb')
+        f.write(mergedtxt)
+        f.close()
+
 
     def sync(self):
         return self.shelf.commit('%s on %s'%(datetime.datetime.now(),
                 socket.getfqdn()))
+
+    def reload(self):
+        if self.shelf is not None:
+            self.shelf.read_repository()
 
