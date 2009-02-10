@@ -115,7 +115,7 @@ Signature: $sig''')
         # make a tmp repository with a working tree
         # fetch, checkout, merge, push, delete
         # handle conflicts somehow...
-        tmpdir = '/tmp/tmprepo1'
+        tmpdir = os.tempnam('/tmp', 'numbex-integration')
         integration = 'integration'
         os.path.mkdir(tmpdir)
         self.shelf.git('branch', integration, to_merge)
