@@ -175,8 +175,7 @@ Signature: $sig''')
                 gitshelve.git('push', 'origin', self.repobranch,
                         repository=tmprepo)
         finally:
-            print 'deleting',tmpdir
-            #os.system('rm -rf %s'%tmpdir)
+            os.system('rm -rf %s'%tmpdir)
             # delete the local branch
             try:
                 self.shelf.git('branch', '-D', integration)
@@ -184,7 +183,6 @@ Signature: $sig''')
                 pass
 
     def handle_merge(self, filename):
-        print filename, 'needs merge'
         f = file(filename)
         contents = f.readlines()
         f.close()
