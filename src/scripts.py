@@ -51,6 +51,13 @@ class TestRepo(object):
                  'freeconet',
                  datetime.datetime(2009, 2, 10, 12, 22, 43, 67814),
                  'AAAAFF+4ccxb+ihQFxOUTjF3uddu7utk AAAAFEn8PyJE8CkkYLubyLgbhQRbyTBq']
+        record3 = ['+485000',
+                 '+485500',
+                 'new.freeconet.pl',
+                 'freeconet',
+                 datetime.datetime(2009, 2, 11, 0, 15, 17, 457868),
+                 'AAAAFQCWbSY9RGhJrFMroQnJhPtozMz2gA== AAAAFQCrULccnUwPwmQiIiv10oC26OdOKw==']
+
         self.repo1.import_data(data)
         self.repo1.sync()
         self.repo2.add_remote('repo1', self.repo1.repodir)
@@ -59,10 +66,11 @@ class TestRepo(object):
         self.repo2.reload()
         self.repo1.import_data([record1])
         self.repo1.sync()
-        self.repo2.import_data([record2])
+        self.repo2.import_data([record2, record3])
         self.repo2.sync()
         self.repo2.fetch_from_remote('repo1')
-        self.repo2.merge('repo1/'+self.repo1.repobranch, dont_push=True)
+        self.repo2.merge('repo1/'+self.repo1.repobranch)
+        self.repo2.reload()
 
     def tearDown(self):
         import os
