@@ -1,5 +1,6 @@
 import logging
 import datetime
+import socket
 from string import Template
 
 import gitshelve
@@ -84,7 +85,7 @@ Signature: $sig''')
             start, end, sip, owner, mdate, rsasig = r
             num = self.make_repo_path(start)
             shelf[num] = self.make_record(start, end, sip, owner, mdate, rsasig)
-        shelf.sync()
+        self.sync()
         return True
 
     def get_range(self, start):
@@ -129,4 +130,6 @@ Signature: $sig''')
 
 
     def sync(self):
-        return self.shelf.sync()
+        return self.shelf.commit('%s on %s'%(datetime.datetime.now(),
+                socket.getfqdn()))
+
