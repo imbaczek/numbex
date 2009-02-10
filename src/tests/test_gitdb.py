@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 import unittest
 import datetime
+import os
 
 import crypto
 import gitdb
@@ -75,12 +76,14 @@ class NumbexDBImportTest(unittest.TestCase):
         self.assertEqual(self.repo.get_range('+48581000'), data[0])
         self.assertEqual(self.repo.export_data_all(), data)
 
-class NumbexDBCloneTest(unittest.TestCase):
+class NumbexDBMergeTest(unittest.TestCase):
     def setUp(self):
         # db is only needed for keys
         self.db = database.Database(':memory:')
         self.db.create_db()
         self.db._populate_example()
+        os.system('rm -rf /tmp/testrepo1')
+        os.system('rm -rf /tmp/testrepo2')
         self.repo1 = gitdb.NumbexRepo('/tmp/testrepo1', self.db.get_public_keys)
         self.repo2 = gitdb.NumbexRepo('/tmp/testrepo2', self.db.get_public_keys)
         self.setUpData()
@@ -99,11 +102,49 @@ class NumbexDBCloneTest(unittest.TestCase):
                  datetime.datetime(2009, 2, 9, 19, 31, 48, 590016),
                  'AAAAFFA1HQw+i7ZIRCoECkDDy3ehCYHc AAAAFFoaeviJLijxAHb0qFfLyUjJXX/T']
             ]
+        record1 = ['+484000',
+                 '+484999',
+                 'sip.freeconet.pl',
+                 'freeconet',
+                 datetime.datetime(2009, 2, 10, 12, 15, 43, 903607),
+                 'AAAAFQCn3vHSuLoxcsc9dJaFj+M989sNIQ== AAAAFAivBp7N8tBAQpXxeci3VQ3S0L8F']
+        record2 = ['+484000',
+                 '+484999',
+                 'new.freeconet.pl',
+                 'freeconet',
+                 datetime.datetime(2009, 2, 10, 12, 22, 43, 67814),
+                 'AAAAFF+4ccxb+ihQFxOUTjF3uddu7utk AAAAFEn8PyJE8CkkYLubyLgbhQRbyTBq']
+        record3 = ['+485000',
+                 '+485500',
+                 'new.freeconet.pl',
+                 'freeconet',
+                 datetime.datetime(2009, 2, 11, 0, 15, 17, 457868),
+                 'AAAAFQCWbSY9RGhJrFMroQnJhPtozMz2gA== AAAAFQCrULccnUwPwmQiIiv10oC26OdOKw==']
+
         self.repo1.import_data(data)
         self.repo1.sync()
+        self.repo2.add_remote('repo1', self.repo1.repodir)
+        self.repo2.fetch_from_remote('repo1')
+        self.repo2.shelf.git('branch', self.repo1.repobranch, 'repo1/'+self.repo1.repobranch)
+        self.repo2.reload()
+        self.record1 = record1
+        self.record2 = record2
+        self.record3 = record3
+        self.data = data
+
+    def test_merge1(self):
+        self.repo1.import_data([self.record1])
+        self.repo1.sync()
+        self.repo2.import_data([self.record2, self.record3])
+        self.repo2.sync()
+        self.repo2.fetch_from_remote('repo1')
+        self.repo2.merge('repo1/'+self.repo1.repobranch)
+        self.repo2.reload()
+        self.assertEqual(self.repo2.get_range('+484000'), self.record2)
+        self.assertEqual(self.repo2.get_range('+485000'), self.record3)
+        self.assertEqual(self.repo2.get_range('+481000'), self.data[0])
 
     def tearDown(self):
-        import os
         os.system('rm -rf /tmp/testrepo1')
         os.system('rm -rf /tmp/testrepo2')
 
