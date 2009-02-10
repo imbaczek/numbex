@@ -20,6 +20,8 @@ class NumbexRepo(object):
         self.repodir = repodir
         if self.repodir and self.repobranch:
             self.shelf = gitshelve.open(self.repobranch, repository=self.repodir)
+        else:
+            self.shelf = None
         self.get_pubkeys = pubkey_getter
     
     def make_repo_path(self, number):
