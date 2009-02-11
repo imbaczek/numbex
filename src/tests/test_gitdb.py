@@ -76,18 +76,8 @@ class NumbexDBImportTest(unittest.TestCase):
         self.assertEqual(self.repo.get_range('+48581000'), data[0])
         self.assertEqual(self.repo.export_data_all(), data)
 
-class NumbexDBMergeTest(unittest.TestCase):
-    def setUp(self):
-        # db is only needed for keys
-        self.db = database.Database(':memory:')
-        self.db.create_db()
-        self.db._populate_example()
-        os.system('rm -rf /tmp/testrepo1')
-        os.system('rm -rf /tmp/testrepo2')
-        self.repo1 = gitdb.NumbexRepo('/tmp/testrepo1', self.db.get_public_keys)
-        self.repo2 = gitdb.NumbexRepo('/tmp/testrepo2', self.db.get_public_keys)
-        self.setUpData()
 
+class RepoDataMixin(object):
     def setUpData(self):
         data = [['+481000',
                  '+481500',
@@ -120,17 +110,33 @@ class NumbexDBMergeTest(unittest.TestCase):
                  'freeconet',
                  datetime.datetime(2009, 2, 11, 0, 15, 17, 457868),
                  'AAAAFQCWbSY9RGhJrFMroQnJhPtozMz2gA== AAAAFQCrULccnUwPwmQiIiv10oC26OdOKw==']
+        self.record1 = record1
+        self.record2 = record2
+        self.record3 = record3
+        self.data = data
 
-        self.repo1.import_data(data)
+
+class NumbexDBMergeTest(unittest.TestCase, RepoDataMixin):
+    def setUp(self):
+        # db is only needed for keys
+        self.db = database.Database(':memory:')
+        self.db.create_db()
+        self.db._populate_example()
+        os.system('rm -rf /tmp/testrepo1')
+        os.system('rm -rf /tmp/testrepo2')
+        self.repo1 = gitdb.NumbexRepo('/tmp/testrepo1', self.db.get_public_keys)
+        self.repo2 = gitdb.NumbexRepo('/tmp/testrepo2', self.db.get_public_keys)
+        self.setUpData()
+
+    def setUpData(self):
+        super(self.__class__, self).setUpData()
+
+        self.repo1.import_data(self.data)
         self.repo1.sync()
         self.repo2.add_remote('repo1', self.repo1.repodir)
         self.repo2.fetch_from_remote('repo1')
         self.repo2.shelf.git('branch', self.repo1.repobranch, 'repo1/'+self.repo1.repobranch)
         self.repo2.reload()
-        self.record1 = record1
-        self.record2 = record2
-        self.record3 = record3
-        self.data = data
 
     def test_merge1(self):
         self.repo1.import_data([self.record1])
