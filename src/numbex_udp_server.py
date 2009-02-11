@@ -10,8 +10,7 @@ except ImportError:
 
 import database
 
-def serve_numbers_forever(dbname, host='', port=51423):
-    db = database.Database(dbname)
+def serve_numbers_forever(db, host='', port=51423):
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     s.bind((host, port))
@@ -26,7 +25,7 @@ def serve_numbers_forever(dbname, host='', port=51423):
             message = message.splitlines()[0].strip()
             logging.info("%s - QUERY %s", address, message)
             start = time.clock()
-            r = db.get_range(message.strip())
+            r = db.get_range_for(message.strip())
             if r is not None:
                 r = list(r)
                 r[4] = r[4].isoformat()
@@ -35,11 +34,11 @@ def serve_numbers_forever(dbname, host='', port=51423):
                 c.writerow(r)
                 end = time.clock()
                 s.sendto("200 OK\n"+sio.getvalue()+"\n", address)
-                logging.info("%s - QUERY completed in %.4f s", address, end-start)
+                logging.info("%s - QUERY completed in %.6f s", address, end-start)
             else:
                 end = time.clock()
                 s.sendto("404 Not found\n", address)
-                logging.info("%s - QUERY not found in %.4f s", address, end-start)
+                logging.info("%s - QUERY not found in %.6f s", address, end-start)
             processed += 1
 
         except (KeyboardInterrupt, SystemExit):
@@ -74,7 +73,9 @@ def main():
         logger.setLevel(loglevel)
     if len(args) != 1:
         op.error('incorrect number of arguments; required database filename')
-    serve_numbers_forever(args[0], options.host, options.port)
+    else:
+        db = database.Database(args[0])
+    serve_numbers_forever(db, options.host, options.port)
 
 
 if __name__ == '__main__':
