@@ -116,7 +116,7 @@ class RepoDataMixin(object):
         self.data = data
 
 
-class NumbexDBMergeTest(unittest.TestCase, RepoDataMixin):
+class NumbexDBMergeTestBase(unittest.TestCase, RepoDataMixin):
     def setUp(self):
         # db is only needed for keys
         self.db = database.Database(':memory:')
@@ -129,7 +129,7 @@ class NumbexDBMergeTest(unittest.TestCase, RepoDataMixin):
         self.setUpData()
 
     def setUpData(self):
-        super(self.__class__, self).setUpData()
+        super(NumbexDBMergeTestBase, self).setUpData()
 
         self.repo1.import_data(self.data)
         self.repo1.sync()
@@ -138,6 +138,12 @@ class NumbexDBMergeTest(unittest.TestCase, RepoDataMixin):
         self.repo2.shelf.git('branch', self.repo1.repobranch, 'repo1/'+self.repo1.repobranch)
         self.repo2.reload()
 
+    def tearDown(self):
+        os.system('rm -rf /tmp/testrepo1')
+        os.system('rm -rf /tmp/testrepo2')
+
+
+class NumbexDBMergeTest(NumbexDBMergeTestBase):
     def test_merge1(self):
         self.repo1.import_data([self.record1])
         self.repo1.sync()
@@ -149,10 +155,6 @@ class NumbexDBMergeTest(unittest.TestCase, RepoDataMixin):
         self.assertEqual(self.repo2.get_range('+484000'), self.record2)
         self.assertEqual(self.repo2.get_range('+485000'), self.record3)
         self.assertEqual(self.repo2.get_range('+481000'), self.data[0])
-
-    def tearDown(self):
-        os.system('rm -rf /tmp/testrepo1')
-        os.system('rm -rf /tmp/testrepo2')
 
 
 
