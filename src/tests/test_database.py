@@ -14,9 +14,7 @@ class TestDatabase(unittest.TestCase):
         c1 = self.db.conn.cursor()
         self.db.insert_range(c1, *v)
         c1.close()
-        c2 = self.db.conn.cursor()
-        r = self.db.get_range(c2, '+48581234')
-        c2.close()
+        r = self.db.get_range('+48581234')
         self.assertEqual(v, r)
 
 
