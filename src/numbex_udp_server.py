@@ -3,6 +3,8 @@ import socket, traceback
 import logging
 import csv
 import time
+import signal
+import sys
 try:
     from cStringIO import StringIO
 except ImportError:
@@ -10,10 +12,18 @@ except ImportError:
 
 import database
 
-def serve_numbers_forever(db, host='', port=51423):
+def make_socket(host, port):
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     s.bind((host, port))
+    return s
+
+def serve_numbers_forever(db, host='', port=8990):
+    s = make_socket(host, port)
+    def sighandler(signum, frame):
+        logging.info("received SIGTERM, shutting down.")
+        raise SystemExit
+    signal.signal(signal.SIGTERM, sighandler)
     logging.info("starting UDP numbex server on port %s", port)
     processed = 0
 
@@ -42,16 +52,23 @@ def serve_numbers_forever(db, host='', port=51423):
             processed += 1
 
         except (KeyboardInterrupt, SystemExit):
+            s.close()
             logging.info("%s queries processed", processed)
             raise
-        except IOError:
-            traceback.print_exc()
+        except socket.error, e:
+            s.close()
+            s = make_socket(host, port)
+            logging.exception('error on %s: %s', address, e)
         except:
+            traceback.print_exc()
             try:
                 s.sendto("500 Internal error\n", address)
+            except socket.error:
+                s.close()
+                s = make_socket(host, port)
+                logging.exception('error on %s: %s', address, e)
             except:
                 pass
-            traceback.print_exc()
 
 def main():
     from optparse import OptionParser
