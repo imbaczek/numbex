@@ -143,8 +143,8 @@ class NumbexDBMergeTestBase(unittest.TestCase, RepoDataMixin):
         os.system('rm -rf /tmp/testrepo2')
 
 
-class NumbexDBMergeTest(NumbexDBMergeTestBase):
-    def test_merge1(self):
+class NumbexDBMergeTest1(NumbexDBMergeTestBase):
+    def test_merge(self):
         self.repo1.import_data([self.record1])
         self.repo1.sync()
         self.repo2.import_data([self.record2, self.record3])
@@ -156,6 +156,44 @@ class NumbexDBMergeTest(NumbexDBMergeTestBase):
         self.assertEqual(self.repo2.get_range('+485000'), self.record3)
         self.assertEqual(self.repo2.get_range('+481000'), self.data[0])
 
+class NumbexDBMergeTest2(NumbexDBMergeTestBase):
+    def test_merge(self):
+        self.repo1.import_data([self.record1])
+        self.repo1.sync()
+        self.repo1.import_data([self.record2, self.record3])
+        self.repo1.sync()
+        self.repo2.fetch_from_remote('repo1')
+        self.repo2.merge('repo1/'+self.repo1.repobranch)
+        self.repo2.reload()
+        self.assertEqual(self.repo2.get_range('+484000'), self.record2)
+        self.assertEqual(self.repo2.get_range('+485000'), self.record3)
+        self.assertEqual(self.repo2.get_range('+481000'), self.data[0])
+
+class NumbexDBMergeTestEmpty(NumbexDBMergeTestBase):
+    def test_merge(self):
+        self.repo2.fetch_from_remote('repo1')
+        self.repo2.merge('repo1/'+self.repo1.repobranch)
+        self.repo2.reload()
+        self.assertEqual(self.repo2.get_range('+481000'), self.data[0])
+        self.assertEqual(self.repo2.get_range('+482500'), self.data[1])
+
+class NumbexDBMergeTest3(NumbexDBMergeTestBase):
+    def setUpData(self):
+        RepoDataMixin.setUpData(self)
+
+        self.repo1.import_data(self.data)
+        self.repo1.sync()
+        self.repo2.add_remote('repo1', self.repo1.repodir)
+        self.repo2.import_data([self.record1])
+        self.repo2.sync()
+
+    def test_no_common_ancestor(self):
+        self.repo2.fetch_from_remote('repo1')
+        self.repo2.merge('repo1/'+self.repo1.repobranch)
+        self.repo2.reload()
+        self.assertEqual(self.repo2.get_range('+481000'), self.data[0])
+        self.assertEqual(self.repo2.get_range('+482500'), self.data[1])
+        self.assertEqual(self.repo2.get_range('+484000'), self.record1)
 
 
 if __name__ == '__main__':
