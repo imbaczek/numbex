@@ -3,11 +3,8 @@ TODO
 
 
 obsluga gita:
-- napisac obsluge gitshelve do numerow
 - eksport bazy do csv
 - import nowego csv
-- dodac obsluge fetch
-- dodac obsluge merge
 
 tracker:
 - przerobic tracker/napisac wlasny serwer xml-rpc
@@ -18,6 +15,9 @@ tracker:
 klient p2p:
 - komunikacja z trackerem
 - komunikacja z gitem
+
+interfejs udp:
+- napisac
 
 runner:
 - import
@@ -39,3 +39,8 @@ baza:
 - dodac wlascicieli (nazwa, tabela z kluczami pub)
 - dodanie bazy kluczy
 - dodac generacje par
+
+obsluga gita:
+- napisac obsluge gitshelve do numerow
+- dodac obsluge fetch
+- dodac obsluge merge
