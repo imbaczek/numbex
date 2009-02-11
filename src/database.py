@@ -257,7 +257,7 @@ W7d77Yq4f2BRkGFp/2Jz
                 # special case: new == old; update DSA signature
                 # set signature to '' otherwise
                 if os == ns and oe == ne:
-                    old = self.get_range(cursor, ovl[0])
+                    old = self._get_range(cursor, ovl[0])
                     if old[:-1] == row[:-1]:
                         self.log.info('full equal, update sig %s %s',
                                 ovl[0], ovl[1])
@@ -278,7 +278,7 @@ W7d77Yq4f2BRkGFp/2Jz
                     self.delete_range(cursor, ovl[0])
                 elif os <= ns and oe >= ne: # complete overlap, new is smaller
                     self.log.info('new smaller ovl %s %s',ovl[0],ovl[1])
-                    old = self.get_range(cursor, ovl[0])
+                    old = self._get_range(cursor, ovl[0])
                     self.set_range_small(cursor, ovl[0], ovl[0], num2str(ns-1), now)
                     self.insert_range(cursor, num2str(ne+1), ovl[1],
                             old[2], old[3], now, '', safe=True)
@@ -305,11 +305,22 @@ W7d77Yq4f2BRkGFp/2Jz
         c.close()
         return result
 
-    def get_range(self, cursor, start):
-        return list(cursor.execute('''select start, end, sip,
+    def get_range(self, start):
+        c = self.conn.cursor()
+        r = self._get_range(c, start)
+        c.close()
+        return r
+
+    def _get_range(self, cursor, start):
+        r = list(cursor.execute('''select start, end, sip,
                      owner, date_changed, signature
                 from numbex_ranges where start = ?''',
-                [start]))[0]
+                [start]))
+        if not r:
+            return None
+        elif len(r) != 1:
+            raise RuntimeError("multiple records found for key %s"%start)
+        return r[0]
 
     def set_range_small(self, cursor, start, newstart, newend, date_changed, sig=''):
         ns = int(newstart)
