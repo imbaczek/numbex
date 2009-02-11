@@ -16,9 +16,6 @@ klient p2p:
 - komunikacja z trackerem
 - komunikacja z gitem
 
-interfejs udp:
-- napisac
-
 runner:
 - import
 - export/export all
@@ -44,3 +41,7 @@ obsluga gita:
 - napisac obsluge gitshelve do numerow
 - dodac obsluge fetch
 - dodac obsluge merge
+
+interfejs udp:
+- napisac
+
