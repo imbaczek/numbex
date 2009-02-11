@@ -101,8 +101,24 @@ Signature: $sig''')
 
     def export_data_all(self):
         ret = []
+        if self.shelf is None:
+            return []
         for k in self.shelf:
             ret.append(self.parse_record(self.shelf[k]))
+        ret.sort(key=lambda x: int(x[0]))
+        return ret
+
+    def export_data_since(self, since):
+        if not isinstance(since, datetime.datetime):
+            raise TypeError('since is type %s, expected datetime.datetime'%type(since))
+        if self.shelf is None:
+            return []
+        ret = []
+        shelf = self.shelf
+        for k in self.shelf:
+            rec = self.parse_record(shelf[k])
+            if rec[4] >= since:
+                ret.append(rec)
         ret.sort(key=lambda x: int(x[0]))
         return ret
 

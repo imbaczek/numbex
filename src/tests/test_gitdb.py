@@ -116,6 +116,33 @@ class RepoDataMixin(object):
         self.data = data
 
 
+class NumbexDBExportTest(unittest.TestCase, RepoDataMixin):
+    def setUp(self):
+        self.db = database.Database(':memory:')
+        self.db.create_db()
+        self.db._populate_example()
+        os.system('rm -rf /tmp/testrepo1')
+        self.repo1 = gitdb.NumbexRepo('/tmp/testrepo1', self.db.get_public_keys)
+        self.setUpData()
+
+    def setUpData(self):
+        RepoDataMixin.setUpData(self)
+        self.result = self.data + [self.record1, self.record3]
+        self.repo1.import_data(self.data)
+        self.repo1.import_data([self.record1, self.record3])
+        self.repo1.sync()
+
+    def test_export_all(self):
+        self.assertEqual(self.repo1.export_data_all(), self.result)
+
+    def test_export_since(self):
+        since = datetime.datetime(2009, 2, 10, 0)
+        self.assertEqual(self.repo1.export_data_since(since),
+                [self.record1, self.record3])
+
+    def tearDown(self):
+        os.system('rm -rf /tmp/testrepo1')
+
 class NumbexDBMergeTestBase(unittest.TestCase, RepoDataMixin):
     def setUp(self):
         # db is only needed for keys
