@@ -34,8 +34,8 @@ class TestUDPServer(unittest.TestCase):
         self.port = 58998
         self.srv = ServerProcess(self.port)
         self.srv.start()
+        # wait for the server to start
         time.sleep(1)
-        
 
     def test_udp_200_OK(self):
         port = self.port
