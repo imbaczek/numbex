@@ -23,7 +23,7 @@ def pull_all(url=None):
     if url is None:
         url = _url
     loc = NumbexServiceServiceLocator()
-    port = loc.getNumbexServicePort(url=_url, tracefile=_tracefile)
+    port = loc.getNumbexServicePort(url=url, tracefile=_tracefile)
 
     msg = getData()
     rsp = port.getData(msg)
