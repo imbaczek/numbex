@@ -1,6 +1,5 @@
 import sqlite3
 import os.path
-import csv
 import logging
 import time
 from datetime import datetime
@@ -152,7 +151,7 @@ W7d77Yq4f2BRkGFp/2Jz
         from datetime import datetime, timedelta
         td1 = timedelta(-10)
         td2 = timedelta(-5)
-        now = datetime.now()
+        now = datetime(2009, 1, 13, 23, 59, 30, 123456)
         data = [('+481234', '+481299', 'sip.freeconet.pl', 'freeconet', now + td1),
                 ('+4820000', '+4820999', 'sip.freeconet.pl', 'freeconet', now + td1),
                 ('+4830000', '+4830099', 'sip.freeconet.pl', 'freeconet', now + td2),
