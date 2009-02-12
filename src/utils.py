@@ -1,6 +1,10 @@
 import datetime
 import re
 import csv
+try:
+    from cStringIO import StringIO
+except ImportError:
+    from StringIO import StringIO
 
 _isoregex = re.compile('[.:T-]')
 def parse_datetime_iso(isostr):
@@ -20,7 +24,7 @@ def parse_csv_data(datastream):
     for row in reader:
         if len(row) < 5:
             raise ValueError("invalid record: %s"%row)
-        row[4] = utils.parse_datetime_iso(row[4])
+        row[4] = parse_datetime_iso(row[4])
         ret.append(row)
     return ret
     
