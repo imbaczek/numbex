@@ -42,7 +42,7 @@ class MyNumbexService(NumbexServiceService):
     def soap_getUpdates(self, ps, **kw):
         request, response = NumbexServiceService.soap_getUpdates(self, ps, **kw)
         since = datetime.fromtimestamp(time.mktime(request._parameter))
-        response._return = "quux"
+        response._return = self._transform_to_csv(self.db.get_data_since(since))
         return request, response
 
     def soap_receiveUpdates(self, ps, **kw):
