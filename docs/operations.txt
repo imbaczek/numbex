@@ -37,6 +37,8 @@ receive updates:
                             wydziel z'-z = (kz+1, kz') (UPDATE)
                         elif zakres z pokrywa w calosci z':
                             usun z' (DELETE)
+			elif zakres z' pokrywa w calosci z:
+			    wydziel z'-z = (sz', sz-1) i (kz+1, kz') (UPDATE, INSERT)
                         wstaw do bazy (INSERT)
 		-- mo¿liwa optymalizacja: jeœli w pokrywaj¹cym zakresie dane
 		-- s¹ identyczne jak w nowym, to nic nie rób
@@ -49,6 +51,8 @@ receive updates:
                     FROM zakresy
                     WHERE start BETWEEN sa AND ka
                         OR koniec BETWEEN sa AND ka
+			OR sa <= start AND ka >= end
+			OR sa >= start AND ka <= end
                 
                 wydziel:
                     a -- zakres do zmiany

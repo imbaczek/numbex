@@ -22,7 +22,8 @@ def pull(since):
     port = loc.getNumbexServicePort(url=_url, tracefile=_tracefile)
 
     msg = getUpdates()
-    msg._parameter = datetime.now().timetuple()
+    s = datetime.strptime(since, "%Y-%m-%dT%H:%M:%S")
+    msg._parameter = s.timetuple()
     rsp = port.getUpdates(msg)
     _outfile.write(rsp._return)
 
