@@ -59,16 +59,19 @@ def serve_numbers_forever(db, host='', port=8990):
             s.close()
             s = make_socket(host, port)
             logging.exception('error on %s: %s', address, e)
+        except ValueError, e:
+            end = time.clock()
+            processed += 1
+            s.sendto("500 %s\n"%e, address)
+            logging.info("%s - QUERY malformed %.6f s", address, end-start)
         except:
-            traceback.print_exc()
+            logging.exception('error on %s:')
             try:
                 s.sendto("500 Internal error\n", address)
             except socket.error:
                 s.close()
                 s = make_socket(host, port)
                 logging.exception('error on %s: %s', address, e)
-            except:
-                pass
 
 def main():
     from optparse import OptionParser
