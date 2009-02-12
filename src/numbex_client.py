@@ -13,41 +13,50 @@ except ImportError:
 
 from NumbexServiceService_client import *
 import crypto
+import utils
 
 _outfile = sys.stdout
 _tracefile = None
 _url = 'http://localhost:8000/'
 
-def pull_all():
+def pull_all(url=None):
+    if url is None:
+        url = _url
     loc = NumbexServiceServiceLocator()
     port = loc.getNumbexServicePort(url=_url, tracefile=_tracefile)
 
     msg = getData()
     rsp = port.getData(msg)
-    _outfile.write(rsp._return)
+    return rsp._return
 
 
-def pull(since):
+def pull(since, url=None):
+    if url is None:
+        url = _url
     loc = NumbexServiceServiceLocator()
-    port = loc.getNumbexServicePort(url=_url, tracefile=_tracefile)
+    port = loc.getNumbexServicePort(url=url, tracefile=_tracefile)
 
     msg = getUpdates()
     s = datetime.strptime(since, "%Y-%m-%dT%H:%M:%S")
     msg._parameter = s.timetuple()
     rsp = port.getUpdates(msg)
-    _outfile.write(rsp._return)
+    return rsp._return
 
-def pull_sign():
+def pull_sign(url=None):
+    if url is None:
+        url = _url
     loc = NumbexServiceServiceLocator()
-    port = loc.getNumbexServicePort(url=_url, tracefile=_tracefile)
+    port = loc.getNumbexServicePort(url=url, tracefile=_tracefile)
 
     msg = getUnsigned()
     rsp = port.getUnsigned(msg)
-    _outfile.write(rsp._return)
+    return rsp._return
 
-def send(filename):
+def send(filename, url=None):
+    if url is None:
+        url = _url
     loc = NumbexServiceServiceLocator()
-    port = loc.getNumbexServicePort(url=_url, tracefile=_tracefile)
+    port = loc.getNumbexServicePort(url=url, tracefile=_tracefile)
 
     msg = receiveUpdates()
     data = file(filename).read()
@@ -58,10 +67,15 @@ def send(filename):
         sys.exit(1)
 
 
-def send_sign(csvfile, keyfile):
-    dsa = crypto.parse_priv_key(file(keyfile).read())
+def send_sign(csvfile, keyfile, url=None):
+    if url is None:
+        url = _url
+    try:
+        dsa = crypto.parse_priv_key(keyfile.read())
+    except AttributeError:
+        dsa = crypto.parse_priv_key(file(keyfile).read())
     loc = NumbexServiceServiceLocator()
-    port = loc.getNumbexServicePort(url=_url, tracefile=_tracefile)
+    port = loc.getNumbexServicePort(url=url, tracefile=_tracefile)
 
     msg = receiveUpdates()
     reader = csv.reader(file(csvfile))
@@ -72,10 +86,7 @@ def send_sign(csvfile, keyfile):
         if len(row) < 5:
             logging.error("invalid record: %s", row)
             sys.exit(1)
-        try:
-            row[4] = datetime.strptime(row[4], "%Y-%m-%dT%H:%M:%S")
-        except ValueError:
-            row[4] = datetime.strptime(row[4][:-7], "%Y-%m-%dT%H:%M:%S")
+        row[4] = utils.parse_datetime_iso(row[4])
         sig = crypto.sign_record(dsa, *row[:5])
         writer.writerow((row[0], row[1], row[2], row[3], row[4].isoformat(), sig))
 
@@ -117,7 +128,9 @@ Available commands:
                 'send': send,
                 'sendsign': send_sign}
     try:
-        dispatch.get(args[0], lambda: op.error("unknown command"))(*args[1:])
+        r=dispatch.get(args[0], lambda: op.error("unknown command"))(*args[1:])
+        if r is not None:
+            _outfile.write(r)
     except TypeError, e:
         op.error("invalid parameters: %s"%e)
         return
