@@ -59,7 +59,10 @@ def send(filename, url=None):
     port = loc.getNumbexServicePort(url=url, tracefile=_tracefile)
 
     msg = receiveUpdates()
-    data = file(filename).read()
+    try:
+        data = filename.read()
+    except AttributeError:
+        data = file(filename).read()
     msg._csv = data
     rsp = port.receiveUpdates(msg)
     if not rsp._return:
@@ -78,7 +81,10 @@ def send_sign(csvfile, keyfile, url=None):
     port = loc.getNumbexServicePort(url=url, tracefile=_tracefile)
 
     msg = receiveUpdates()
-    reader = csv.reader(file(csvfile))
+    if isinstance(csvfile, basestring):
+        reader = csv.reader(file(csvfile))
+    else:
+        reader = csv.reader(csvfile)
     sio = StringIO()
     writer = csv.writer(sio)
 
