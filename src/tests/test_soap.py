@@ -36,7 +36,7 @@ class ServerProcess(object):
     def kill(self):
         if self.pid:
             os.kill(self.pid, signal.SIGTERM)
-            time.sleep(0.5)
+            os.waitpid(self.pid, 0)
             try:
                 os.unlink(self.dbname)
             except OSError:
