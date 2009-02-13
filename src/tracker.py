@@ -140,14 +140,27 @@ class NumbexTracker(object):
         self.timeout = timeout
         self.running = True
 
-    def register(self, client_address, user, authdata):
-        logging.info("peer registered: %s", client_address)
-        self.peers[client_address] = time.time()
-        return self.get_peers(client_address)
+    def register(self, client_address, user, authdata, advertised_address):
+        logging.info("peer register: %s", advertised_address)
+        if self._check_address(client_address, advertised_address):
+            return []
+        self.peers[advertised_address] = time.time()
+        return self.get_peers(advertised_address)
+
+    def _check_address(self, client, advertised):
+        hc = client[0]
+        ha = advertised[0]
+        if hc == ha:
+            return True
+        else:
+            logging.warn('peer advertised host %s != connect host %s', ha, hc)
+            return False
 
 
-    def keepalive(self, client_address):
-        logging.info("peer keepalive: %s", client_address)
+    def keepalive(self, client_address, advertised_address):
+        logging.info("peer keepalive: %s", advertised_address)
+        if not self._check_address(client_address, advertised_address):
+            return False
         if client_address in self.peers:
             self.peers[client_address] = time.time()
             return True
@@ -155,12 +168,16 @@ class NumbexTracker(object):
             logging.warn("spurious keepalive from %s", client_address)
             return False
 
-    def get_peers(self, client_address):
-        return [x for x in self.peers if self.peers[x] != client_address]
+    def get_peers(self, client_address, advertised_address):
+        if not self._check_address(client_address, advertised_address):
+            return False
+        return [x for x in self.peers if self.peers[x] != advertised_address]
     
-    def unregister(self, client_address):
+    def unregister(self, client_address, advertised_address):
+        logging.info("peer unregister: %s", client_address)
+        if not self._check_address(client_address, advertised_address):
+            return False
         if client_address in self.peers:
-            logging.info("peer unregister: %s", client_address)
             del self.peers[client_address]
         else:
             logging.warn("spurious unregister from %s", client_address)
@@ -186,7 +203,7 @@ def mainloop(host, port):
             instance._clean_timeouted()
             time.sleep(15)
 
-    srv = NumbexXMLRPCServer((options.host, options.port))
+    srv = NumbexXMLRPCServer((host, port))
     srv.register_instance(instance)
     logging.info("starting Numbex XML RPC tracker server.")
     srv.serve_forever()
