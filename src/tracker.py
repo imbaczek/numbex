@@ -142,45 +142,45 @@ class NumbexTracker(object):
 
     def register(self, client_address, user, authdata, advertised_address):
         logging.info("peer register: %s", advertised_address)
-        if self._check_address(client_address, advertised_address):
-            return []
-        self.peers[advertised_address] = time.time()
-        return self.get_peers(advertised_address)
+        addr, port = self._check_address(client_address, advertised_address)
+        self.peers[(addr, port)] = time.time()
+        return self.timeout
 
     def _check_address(self, client, advertised):
         hc = client[0]
         ha = advertised[0]
-        if hc == ha:
-            return True
-        else:
+        if hc != ha:
             logging.warn('peer advertised host %s != connect host %s', ha, hc)
-            return False
+        addr, port = advertised
+        if not isinstance(addr, basestring) and not isinstance(int, port):
+            return None, None
+        else:
+            return addr, port
 
 
     def keepalive(self, client_address, advertised_address):
         logging.info("peer keepalive: %s", advertised_address)
-        if not self._check_address(client_address, advertised_address):
-            return False
-        if client_address in self.peers:
-            self.peers[client_address] = time.time()
+        addr, port = self._check_address(client_address, advertised_address)
+        if (addr, port) in self.peers:
+            self.peers[(addr, port)] = time.time()
             return True
         else:
-            logging.warn("spurious keepalive from %s", client_address)
+            logging.warn("spurious keepalive from %s as %s",
+                    client_address, advertised_address)
             return False
 
     def get_peers(self, client_address, advertised_address):
-        if not self._check_address(client_address, advertised_address):
-            return False
-        return [x for x in self.peers if self.peers[x] != advertised_address]
+        addr, port = self._check_address(client_address, advertised_address)
+        return [x for x in self.peers if x != (addr, port)]
     
     def unregister(self, client_address, advertised_address):
-        logging.info("peer unregister: %s", client_address)
-        if not self._check_address(client_address, advertised_address):
-            return False
-        if client_address in self.peers:
-            del self.peers[client_address]
+        logging.info("peer unregister: %s", advertised_address)
+        addr, port = self._check_address(client_address, advertised_address)
+        if (addr, port) in self.peers:
+            del self.peers[(addr, port)]
         else:
-            logging.warn("spurious unregister from %s", client_address)
+            logging.warn("spurious unregister from %s as %s",
+                    client_address, advertised_address)
         return True
 
     def echo(self, client_address):
@@ -189,24 +189,39 @@ class NumbexTracker(object):
 
     def _clean_timeouted(self):
         t = time.time()
+        todel = []
         for k in self.peers:
             if self.peers[k] + self.timeout < t:
                 logging.info("peer timeout: %s", k)
-                del self.peers[k]
+                todel.append(k)
+        for k in todel:
+            del self.peers[k]
 
 
-def mainloop(host, port):
-    instance = NumbexTracker()
+def mainloop(host, port, timeout):
+    instance = NumbexTracker(timeout=timeout)
     
     def clean():
         while instance.running:
             instance._clean_timeouted()
-            time.sleep(15)
+            time.sleep(5)
 
+    t = threading.Thread(target=clean)
+    t.daemon = True
     srv = NumbexXMLRPCServer((host, port))
     srv.register_instance(instance)
     logging.info("starting Numbex XML RPC tracker server.")
-    srv.serve_forever()
+    t.start()
+    try:
+        srv.serve_forever()
+    except (KeyboardInterrupt, SystemExit):
+        instance.running = False
+        logging.info("clean shutdown")
+        sys.exit(0)
+    except:
+        instance.running = False
+        logging.exception("shutting down due to exception")
+        raise
     
 
 def main():
@@ -216,9 +231,12 @@ def main():
         metavar="PORT", default=8880, type="int", dest="port")
     op.add_option("-b", "--bind-to", help="hostname to bind to",
         metavar="HOST", default="", dest="host")
+    op.add_option("-t", "--peer-timeout", type="int",
+        metavar="TIMEOUT", default=300)
     options, args = op.parse_args()
 
-    mainloop(options.host, options.port)
+    logging.basicConfig(level=logging.INFO)
+    mainloop(options.host, options.port, options.peer_timeout)
 
 
 
