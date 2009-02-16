@@ -147,16 +147,14 @@ class NumbexTracker(object):
         return self.timeout
 
     def _check_address(self, client, advertised):
-        hc = client[0]
-        if isinstance(advertised, basestring):
-            ha = advertised
-        else:
+        if not isinstance(advertised, basestring):
             try:
+                hc = client[0]
                 ha = advertised[0]
+                if hc != ha:
+                    logging.warn('peer advertised host %s != connect host %s', ha, hc)
             except:
-                ha = None
-        if hc != ha:
-            logging.warn('peer advertised host %s != connect host %s', ha, hc)
+                pass
         try:
             addr, port = advertised
             if not isinstance(addr, basestring) and not isinstance(int, port):
