@@ -7,6 +7,9 @@ prefix = /usr/local/numbex
 logging_config =
 control_host = localhost
 control_port = 44880
+owner = freeconet
+#private_key = /etc/numbex.pem
+private_key = 
 
 [PEER]
 # multiple values allowed
@@ -33,8 +36,12 @@ port = 8000
 path = %(prefix)s/var/repo
 publish_method = daemon
 daemon_port = 11223
-repo_url = git://localhost:11223/repo
+repo_url = git://localhost:11223/
+# timeout for records exported in hours
+export_timeout = 96
 
 [DATABASE]
 path = %(prefix)s/var/db/db.sqlite3
+# timeout for records exported in hours
+export_timeout = 96
 '''

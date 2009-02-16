@@ -28,6 +28,7 @@ class NumbexRepo(object):
             self.shelf = None
         self.get_pubkeys = pubkey_getter
         self.daemon = None
+        self.log = logging.getLogger("git")
     
     def make_repo_path(self, number):
         '''transform a string like this:
@@ -69,10 +70,12 @@ Signature: $sig''')
 
     def import_data(self, data):
         '''data format: iterator of records in format produced by parse_record'''
+        self.log.info('importing %s records...', len(data))
+        tstart = time.time()
         keycache = {}
         for row in data:
             if len(row) != 6:
-                logging.warning("invalid record %s", row)
+                self.log.warning("invalid record %s", row)
                 return False
             owner = row[3]
             if not owner in keycache:
@@ -80,21 +83,31 @@ Signature: $sig''')
                             for k in self.get_pubkeys(owner)]
                 keycache[owner] = [crypto.parse_pub_key(k) for k in pemkeys]
                 if not keycache[owner]:
-                    logging.warning("no key found for %s", row)
+                    self.log.warning("no key found for %s", row)
                     return False
             checked_data = row[:-1]
             sig = row[-1]
             if not any(crypto.check_signature(key, row[-1], *row[:-1])
                     for key in keycache[owner]):
-                logging.warning("invalid signature %s", row)
+                self.log.warning("invalid signature %s", row)
                 return False
 
         shelf = self.shelf
         for r in data:
             start, end, sip, owner, mdate, rsasig = r
             num = self.make_repo_path(start)
-            shelf[num] = self.make_record(start, end, sip, owner, mdate, rsasig)
+            newrec = self.make_record(start, end, sip, owner, mdate, rsasig)
+            # 'key in shelf' doesn't seem to work
+            try:
+                oldrec = shelf[num]
+            except KeyError:
+                shelf[num] = newrec
+            else:
+                if oldrec != newrec:
+                    shelf[num] = newrec
         self.sync()
+        tend = time.time()
+        self.log.info("import successful, time %.3f", tend-tstart)
         return True
 
     def get_range(self, start):
@@ -269,21 +282,21 @@ Signature: $sig''')
                 '--base-path='+self.repodir, '--port=%s'%port, self.repodir))
         time.sleep(0.2)
         if self.daemon.poll() is None:
-            logging.info("started git-daemon (pid %s) on port %s",
+            self.log.info("started git-daemon (pid %s) on port %s",
                     self.daemon.pid, port)
             return True
         else:
-            logging.error("couldn't start git-daemon, exit code %s: %s",
+            self.log.error("couldn't start git-daemon, exit code %s: %s",
                     self.daemon.returncode, self.daemon.stderr.read())
             return False
 
     def stop_daemon(self):
         if self.daemon is not None:
-            logging.info("terminating daemon")
+            self.log.info("terminating daemon")
             os.kill(self.daemon.pid, signal.SIGTERM)
             time.sleep(1)
             if self.daemon.poll() is None:
-                logging.info("killing daemon")
+                self.log.info("killing daemon")
                 os.kill(self.daemon.pid, signal.SIGKILL)
                 self.daemon = None
 
@@ -293,3 +306,11 @@ Signature: $sig''')
         self.pubkey_getter = None
         self.stop_daemon()
 
+    def __nonzero__(self):
+        i = iter(self.shelf)
+        try:
+            i.next()
+        except StopIteration:
+            return False
+        else:
+            return True
