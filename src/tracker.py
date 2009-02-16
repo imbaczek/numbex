@@ -142,13 +142,19 @@ class NumbexTracker(object):
 
     def register(self, client_address, user, authdata, advertised_address):
         logging.info("peer register: %s", advertised_address)
-        addr, port = self._check_address(client_address, advertised_address)
-        self.peers[(addr, port)] = time.time()
+        address = self._check_address(client_address, advertised_address)
+        self.peers[address] = time.time()
         return self.timeout
 
     def _check_address(self, client, advertised):
         hc = client[0]
-        ha = advertised[0]
+        if isinstance(advertised, basestring):
+            ha = advertised
+        else:
+            try:
+                ha = advertised[0]
+            except:
+                ha = None
         if hc != ha:
             logging.warn('peer advertised host %s != connect host %s', ha, hc)
         try:
