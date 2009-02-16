@@ -139,9 +139,10 @@ class NumbexTracker(object):
         self.auth_function = auth_function
         self.timeout = timeout
         self.running = True
+        self.log = logging.getLogger("tracker")
 
     def register(self, client_address, user, authdata, advertised_address):
-        logging.info("peer register: %s", advertised_address)
+        self.log.info("peer register: %s", advertised_address)
         address = self._check_address(client_address, advertised_address)
         self.peers[address] = time.time()
         return self.timeout
@@ -152,7 +153,7 @@ class NumbexTracker(object):
                 hc = client[0]
                 ha = advertised[0]
                 if hc != ha:
-                    logging.warn('peer advertised host %s != connect host %s', ha, hc)
+                    self.log.warn('peer advertised host %s != connect host %s', ha, hc)
             except:
                 pass
         try:
@@ -166,13 +167,13 @@ class NumbexTracker(object):
 
 
     def keepalive(self, client_address, advertised_address):
-        logging.info("peer keepalive: %s", advertised_address)
+        self.log.info("peer keepalive: %s", advertised_address)
         address = self._check_address(client_address, advertised_address)
         if address in self.peers:
             self.peers[address] = time.time()
             return True
         else:
-            logging.warn("spurious keepalive from %s as %s",
+            self.log.warn("spurious keepalive from %s as %s",
                     client_address, advertised_address)
             return False
 
@@ -181,17 +182,17 @@ class NumbexTracker(object):
         return [x for x in self.peers if x != address]
     
     def unregister(self, client_address, advertised_address):
-        logging.info("peer unregister: %s", advertised_address)
+        self.log.info("peer unregister: %s", advertised_address)
         address = self._check_address(client_address, advertised_address)
         if address in self.peers:
             del self.peers[address]
         else:
-            logging.warn("spurious unregister from %s as %s",
+            self.log.warn("spurious unregister from %s as %s",
                     client_address, advertised_address)
         return True
 
     def echo(self, client_address):
-        logging.info('echo %s', client_address)
+        self.log.info('echo %s', client_address)
         return client_address
 
     def _clean_timeouted(self):
@@ -199,7 +200,7 @@ class NumbexTracker(object):
         todel = []
         for k in self.peers:
             if self.peers[k] + self.timeout < t:
-                logging.info("peer timeout: %s", k)
+                self.log.info("peer timeout: %s", k)
                 todel.append(k)
         for k in todel:
             del self.peers[k]
