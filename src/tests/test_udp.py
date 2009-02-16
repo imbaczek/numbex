@@ -26,6 +26,7 @@ class ServerProcess(object):
     def kill(self):
         if self.pid:
             os.kill(self.pid, signal.SIGTERM)
+            os.waitpid(self.pid, 0)
 
 
 
