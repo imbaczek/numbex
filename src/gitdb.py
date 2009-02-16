@@ -4,11 +4,15 @@ import socket
 import os
 import tempfile
 from string import Template
+import subprocess
+import signal
+import time
 
 import gitshelve
 
 import crypto
 import utils
+
 
 class NumbexDBError(Exception):
     def __init__(self, *args, **kwargs):
@@ -23,6 +27,7 @@ class NumbexRepo(object):
         else:
             self.shelf = None
         self.get_pubkeys = pubkey_getter
+        self.daemon = None
     
     def make_repo_path(self, number):
         '''transform a string like this:
@@ -256,4 +261,35 @@ Signature: $sig''')
     def reload(self):
         if self.shelf is not None:
             self.shelf.read_repository()
+
+    def start_daemon(self, port):
+        f = file(os.path.join(self.repodir, 'git-daemon-export-ok'), 'a')
+        f.close()
+        self.daemon = subprocess.Popen(('git', 'daemon', '--reuseaddr',
+                '--base-path='+self.repodir, '--port=%s'%port, self.repodir))
+        time.sleep(0.2)
+        if self.daemon.poll() is None:
+            logging.info("started git-daemon (pid %s) on port %s",
+                    self.daemon.pid, port)
+            return True
+        else:
+            logging.error("couldn't start git-daemon, exit code %s: %s",
+                    self.daemon.returncode, self.daemon.stderr.read())
+            return False
+
+    def stop_daemon(self):
+        if self.daemon is not None:
+            logging.info("terminating daemon")
+            os.kill(self.daemon.pid, signal.SIGTERM)
+            time.sleep(1)
+            if self.daemon.poll() is None:
+                logging.info("killing daemon")
+                os.kill(self.daemon.pid, signal.SIGKILL)
+                self.daemon = None
+
+    def dispose(self):
+        self.sync()
+        self.shelf.close()
+        self.pubkey_getter = None
+        self.stop_daemon()
 

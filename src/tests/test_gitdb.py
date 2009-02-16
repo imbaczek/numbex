@@ -2,6 +2,9 @@ from __future__ import absolute_import
 import unittest
 import datetime
 import os
+import time
+
+from gitshelve import GitError
 
 import crypto
 import gitdb
@@ -139,6 +142,19 @@ class NumbexDBExportTest(unittest.TestCase, RepoDataMixin):
         since = datetime.datetime(2009, 2, 10, 0)
         self.assertEqual(self.repo1.export_data_since(since),
                 [self.record1, self.record3])
+
+    def test_start_daemon(self):
+        self.repo1.start_daemon(11223)
+        self.repo1.add_remote('self', 'git://localhost:11223/')
+        try:
+            self.repo1.fetch_from_remote('self')
+        except:
+            self.assert_(False)
+        else:
+            self.assert_(True)
+        self.repo1.stop_daemon()
+        self.assertRaises(GitError, self.repo1.fetch_from_remote, 'self')
+
 
     def tearDown(self):
         os.system('rm -rf /tmp/testrepo1')
