@@ -96,9 +96,6 @@ Signature: $sig''')
         path = self.make_repo_path(start)
         return self.parse_record(self.shelf[path])
 
-    def export_data_since(self, since):
-        pass
-
     def export_data_all(self):
         ret = []
         if self.shelf is None:
@@ -178,6 +175,7 @@ Signature: $sig''')
                         if status == 'needs merge':
                             self.handle_merge(os.path.abspath(filename))
                             gitshelve.git('add', filename)
+                    # commit the result
                     gitshelve.git('commit', '-m', 'merge. %s on %s'%
                             (datetime.datetime.now(), socket.getfqdn()),
                             repository=tmprepo, worktree=tmpdir)

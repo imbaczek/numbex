@@ -7,6 +7,7 @@ from tests.test_database import *
 from tests.test_utils import *
 from tests.test_udp import *
 from tests.test_soap import *
+from tests.test_tracker import *
 
 if __name__ == '__main__':
     unittest.main()

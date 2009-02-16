@@ -9,7 +9,7 @@ import os, sys
 
 class NumbexPeer(object):
     def __init__(self, address='http://localhost:8880', user=None, auth=None,
-                git=None):
+                git=None, gitaddress=None):
         self.address = address
         self.user = user
         self.auth = auth
@@ -17,7 +17,10 @@ class NumbexPeer(object):
         self.rpc = xmlrpclib.ServerProxy(address)
         self.timeout = 300
         self.running = False
-        self.gitaddress = ['127.0.0.1', os.getpid()]
+        if gitaddress is None:
+            self.gitaddress = ['127.0.0.1', os.getpid()]
+        else:
+            self.gitaddress = gitaddress
         self.peers = []
         self.firstupdate = True
         self.reregister = False
