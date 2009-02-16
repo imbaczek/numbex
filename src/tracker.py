@@ -151,18 +151,21 @@ class NumbexTracker(object):
         ha = advertised[0]
         if hc != ha:
             logging.warn('peer advertised host %s != connect host %s', ha, hc)
-        addr, port = advertised
-        if not isinstance(addr, basestring) and not isinstance(int, port):
-            return None, None
-        else:
-            return addr, port
+        try:
+            addr, port = advertised
+            if not isinstance(addr, basestring) and not isinstance(int, port):
+                return None, None
+            else:
+                return addr, port
+        except ValueError:
+            return advertised
 
 
     def keepalive(self, client_address, advertised_address):
         logging.info("peer keepalive: %s", advertised_address)
-        addr, port = self._check_address(client_address, advertised_address)
-        if (addr, port) in self.peers:
-            self.peers[(addr, port)] = time.time()
+        address = self._check_address(client_address, advertised_address)
+        if address in self.peers:
+            self.peers[address] = time.time()
             return True
         else:
             logging.warn("spurious keepalive from %s as %s",
@@ -170,14 +173,14 @@ class NumbexTracker(object):
             return False
 
     def get_peers(self, client_address, advertised_address):
-        addr, port = self._check_address(client_address, advertised_address)
-        return [x for x in self.peers if x != (addr, port)]
+        address = self._check_address(client_address, advertised_address)
+        return [x for x in self.peers if x != address]
     
     def unregister(self, client_address, advertised_address):
         logging.info("peer unregister: %s", advertised_address)
-        addr, port = self._check_address(client_address, advertised_address)
-        if (addr, port) in self.peers:
-            del self.peers[(addr, port)]
+        address = self._check_address(client_address, advertised_address)
+        if address in self.peers:
+            del self.peers[address]
         else:
             logging.warn("spurious unregister from %s as %s",
                     client_address, advertised_address)
