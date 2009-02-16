@@ -23,49 +23,56 @@ class NumbexPeer(object):
         self.peers = []
         self.firstupdate = True
         self.reregister = False
+        self.registered = False
+        self.log = logging.getLogger("peer.%s"%self.address)
 
     def keepalive(self):
         while self.running and self.timeout > 0:
             try:
                 known = self.rpc.keepalive(self.gitaddress)
                 if not known:
-                    logging.warn("server forgot about us, need to reregister")
+                    self.log.warn("server forgot about us, need to reregister")
                     self.reregister = True
+                    self.registered = False
                     return
             except (socket.error, socket.timeout), e:
-                logging.error("keepalive: %s", e)
+                self.log.error("keepalive: %s", e)
             time.sleep(max(self.timeout-5, 1))
 
     def register(self):
         while True:
+            self.registered = False
             try:
                 self.timeout = self.rpc.register(self.user, self.auth,
                         self.gitaddress)
             except (socket.error, socket.timeout):
-                logging.exception("error while registering")
+                self.log.exception("error while registering")
                 self.timeout = 0
             if self.timeout > 0:
-                logging.info("registered, timeout period %s", self.timeout)
+                self.log.info("registered, timeout period %s", self.timeout)
                 self.running = True
                 self.reregister = False
                 t = threading.Thread(target=self.keepalive)
                 t.daemon = True
                 t.start()
+                self.registered = True
                 return
             else:
-                logging.warn("cannot register, retrying...")
+                self.log.warn("cannot register, retrying...")
                 time.sleep(20)
 
     def stop(self):
         self.running = False
-        try:
-            self.rpc.unregister(self.gitaddress)
-        except:
-            logging.exception("unregister failed")
+        if self.registered:
+            self.registered = False
+            try:
+                self.rpc.unregister(self.gitaddress)
+            except:
+                self.log.exception("unregister failed")
 
     def get_peers(self):
         self.peers = self.rpc.get_peers(self.gitaddress)
-        logging.info("got %s peers", len(self.peers))
+        self.log.info("got %s peers", len(self.peers))
 
     def mainloop(self):
         while self.running:
@@ -81,13 +88,13 @@ class NumbexPeer(object):
                     self.register()
                 self.get_peers()
             except (KeyboardInterrupt, SystemExit):
-                logging.info("exiting")
+                self.log.info("exiting")
                 self.stop()
                 return
             except (socket.error, socket.timeout), e:
-                logging.error("%s", e)
+                self.log.error("%s", e)
             except:
-                logging.exception('caught exception')
+                self.log.exception('caught exception')
         self.stop()
 
 
