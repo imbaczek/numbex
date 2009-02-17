@@ -176,6 +176,7 @@ Signature: $sig''')
         tmprepo = os.path.join(tmpdir, '.git')
         integration = 'integration'
         had_conflicts = False
+        self.log.info("starting merge")
         try:
             # create a local branch which we want to merge
             self.shelf.git('branch', integration, to_merge)
@@ -210,6 +211,7 @@ Signature: $sig''')
                         status = status.strip()
                         if status == 'needs merge':
                             had_conflicts = True
+                            self.log.info("conflicted file: %s", filename)
                             self.handle_merge(os.path.abspath(filename))
                             gitshelve.git('add', filename)
                     # commit the result
@@ -219,13 +221,23 @@ Signature: $sig''')
                 else:
                     # not a merge conflict, abort
                     raise
+            except:
+                self.log.exception("'git merge' failed:")
+                raise
             finally:
                 os.chdir(cwd)
             # push the results
             if not dont_push:
                 gitshelve.git('push', 'origin', self.repobranch,
                         repository=tmprepo)
+            if had_conflicts:
+                self.log.info("merge completed with conflicts resolved")
+            else:
+                self.log.info("merge completed without conflicts")
             return had_conflicts
+        except:
+            self.log.exception("merge failed:")
+            raise
         finally:
             os.system('rm -rf %s'%tmpdir)
             # delete the local branch
