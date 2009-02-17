@@ -140,8 +140,25 @@ Signature: $sig''')
     def export_diff(self, rev1, rev2):
         pass
 
-    def add_remote(self, remote, uri):
-        return self.shelf.git('remote', 'add', remote, uri)
+    def get_remotes(self):
+        r = self.shelf.git('remote', '-v', 'show')
+        remotes = {}
+        for line in r.splitlines():
+            name, url = line.split('\t', 1)
+            remotes[name] = url
+        return remotes
+
+    def add_remote(self, remote, uri, force=False):
+        remotes = self.get_remotes()
+        if remote in remotes:
+            if remotes[remote] == uri:
+                return
+            else:
+                if not force:
+                    raise ValueError('remote %s already exists'%remote)
+                else:
+                    self.shelf.git('remote', 'rm', remote)
+        self.shelf.git('remote', 'add', remote, uri)
 
     def fetch_from_remote(self, remote):
         return self.shelf.git('fetch', remote)
