@@ -43,6 +43,7 @@ class NumbexDaemon(object):
         self.log = logging.getLogger("daemon")
         self.updater_running = False
         self.updater_reqs = Queue(20)
+        self.last_update = 0
 
     def reload_config(self, configname):
         newcfg = read_config(confname)
@@ -112,6 +113,7 @@ class NumbexDaemon(object):
                 if not r:
                     self.log.warn("p2p_get_updates: %s", msg)
                 self._import_from_p2p(db=db)
+                self.last_update = time.time()
             except:
                 self.log.exception("error in p2p_get_updates")
 
@@ -230,7 +232,21 @@ class NumbexDaemon(object):
         else:
             self.log.warn("import failed, time %.3f", end-start)
         return r
-        
+
+    def status(self):
+        return {
+            'flags': {
+                'p2p_running': self.p2p_running,
+                'updater_running': self.updater_running,
+            },
+            'p2p': {
+                'peers': self.p2p_get_peers(),
+                'trackers': [x.address for x in self.clients],
+            },
+            'updater': {
+                'last_update': self.last_update,
+            }
+        }
 
     def shutdown(self):
         self._exit()
