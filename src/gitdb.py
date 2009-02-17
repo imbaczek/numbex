@@ -140,8 +140,25 @@ Signature: $sig''')
     def export_diff(self, rev1, rev2):
         pass
 
-    def add_remote(self, remote, uri):
-        return self.shelf.git('remote', 'add', remote, uri)
+    def get_remotes(self):
+        r = self.shelf.git('remote', '-v', 'show')
+        remotes = {}
+        for line in r.splitlines():
+            name, url = line.split('\t', 1)
+            remotes[name] = url
+        return remotes
+
+    def add_remote(self, remote, uri, force=False):
+        remotes = self.get_remotes()
+        if remote in remotes:
+            if remotes[remote] == uri:
+                return
+            else:
+                if not force:
+                    raise ValueError('remote %s already exists'%remote)
+                else:
+                    self.shelf.git('remote', 'rm', remote)
+        self.shelf.git('remote', 'add', remote, uri)
 
     def fetch_from_remote(self, remote):
         return self.shelf.git('fetch', remote)
@@ -158,6 +175,7 @@ Signature: $sig''')
         tmpdir = tempfile.mkdtemp(prefix='numbex-integration')
         tmprepo = os.path.join(tmpdir, '.git')
         integration = 'integration'
+        had_conflicts = False
         try:
             # create a local branch which we want to merge
             self.shelf.git('branch', integration, to_merge)
@@ -191,6 +209,7 @@ Signature: $sig''')
                         filename = filename.strip()
                         status = status.strip()
                         if status == 'needs merge':
+                            had_conflicts = True
                             self.handle_merge(os.path.abspath(filename))
                             gitshelve.git('add', filename)
                     # commit the result
@@ -206,6 +225,7 @@ Signature: $sig''')
             if not dont_push:
                 gitshelve.git('push', 'origin', self.repobranch,
                         repository=tmprepo)
+            return had_conflicts
         finally:
             os.system('rm -rf %s'%tmpdir)
             # delete the local branch
