@@ -175,6 +175,7 @@ Signature: $sig''')
         tmpdir = tempfile.mkdtemp(prefix='numbex-integration')
         tmprepo = os.path.join(tmpdir, '.git')
         integration = 'integration'
+        had_conflicts = False
         try:
             # create a local branch which we want to merge
             self.shelf.git('branch', integration, to_merge)
@@ -208,6 +209,7 @@ Signature: $sig''')
                         filename = filename.strip()
                         status = status.strip()
                         if status == 'needs merge':
+                            had_conflicts = True
                             self.handle_merge(os.path.abspath(filename))
                             gitshelve.git('add', filename)
                     # commit the result
@@ -223,6 +225,7 @@ Signature: $sig''')
             if not dont_push:
                 gitshelve.git('push', 'origin', self.repobranch,
                         repository=tmprepo)
+            return had_conflicts
         finally:
             os.system('rm -rf %s'%tmpdir)
             # delete the local branch
