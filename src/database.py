@@ -8,21 +8,14 @@ import crypto
 import utils
 
 class Database(object):
-    def __init__(self, filename, logger=None, loghandler=None, fill_example=None):
+    def __init__(self, filename, logger=None, fill_example=None):
         if logger is None:
-            self.log = logging.getLogger('Numbex DB')
+            self.log = logging.getLogger('database')
             self.log.setLevel(logging.INFO)
-            if loghandler is None:
-                loghandler = logging.FileHandler('database.log')
-                loghandler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
-                self.log.addHandler(loghandler)
         else:
             self.log = logger
 
         self.log.info('starting database with file %s', filename)
-
-        if loghandler is not None:
-            self.log.addHandler(loghandler)
 
         self.filename = filename
         if filename != ':memory:' and not os.path.isfile(filename):
@@ -63,6 +56,14 @@ class Database(object):
             signature text,
             foreign key (sip) references numbex_domains(sip),
             foreign key (owner) references numbex_owners(owner))''')
+        c.execute('create unique index ranges_s_index on numbex_ranges(_s)')
+        c.execute('create unique index ranges_e_index on numbex_ranges(_e)')
+
+        c.execute('''create table numbex_range_changes (
+            id integer primary key,
+            start text,
+            end text,
+            type char(1))''')
 
         self.conn.commit()
         c.close()
@@ -70,6 +71,7 @@ class Database(object):
     def drop_db(self):
         self.log.info('dropping database tables.')
         c = self.conn.cursor()
+        c.execute('drop table numbex_range_changes')
         c.execute('drop table numbex_ranges')
         c.execute('drop table numbex_pubkeys')
         c.execute('drop table numbex_domains')
@@ -230,6 +232,35 @@ W7d77Yq4f2BRkGFp/2Jz
         finally:
             cursor.close()
 
+    def _add_change(self, cursor, start, end, tp):
+        assert tp in ('D', 'M', 'A')
+        q = '''insert into numbex_range_changes (start, end, type)
+                values (?, ?, ?)'''
+        cursor.execute(q, [start, end, tp])
+
+    def get_changed_data(self):
+        q = '''select type, start, end from numbex_range_changes
+                order by start'''
+        c = self.conn.cursor()
+        c.execute(q)
+        r = list(c)
+        c.close()
+        return r
+
+    def has_changed_data(self):
+        q = '''select count(*)>0 from numbex_range_changes'''
+        c = self.conn.cursor()
+        c.execute(q)
+        r = list(c)[0]
+        c.close()
+        return c
+
+    def clear_changed_data(self):
+        q = '''delete from numbex_range_changes'''
+        c = self.conn.cursor()
+        c.execute(q)
+        c.close()
+
     def update_data(self, data):
         self.log.info("update data - %s rows", len(data))
         starttime = time.clock()
@@ -257,33 +288,43 @@ W7d77Yq4f2BRkGFp/2Jz
                 # set signature to '' otherwise
                 if os == ns and oe == ne:
                     old = self._get_range(cursor, ovl[0])
-                    if old[:-1] == row[:-1]:
+                    if old == row:
+                        self.log.info('nothing to do for %s %s', ovl[0], ovl[1])
+                    elif old[:-1] == row[:-1]:
                         self.log.info('full equal, update sig %s %s',
                                 ovl[0], ovl[1])
                         self.set_range_small(cursor, ovl[0], ovl[0], ovl[1],
                                 row[4], row[5])
+                        self._add_change(cursor, ovl[0], ovl[1], 'M')
                     else:
                         self.log.info('equal ovl %s %s', ovl[0], ovl[1])
                         self.set_range(cursor, ovl[0], *row)
+                        self._add_change(cursor, ovl[0], ovl[1], 'M')
                     do_insert = False
                 elif os >= ns and os <= ne and oe > ne: # left overlap
                     self.log.info('left ovl %s %s',ovl[0],ovl[1])
                     self.set_range_small(cursor, ovl[0], num2str(ne+1), ovl[1], now)
+                    self._add_change(cursor, ovl[0], ovl[1], 'M')
                 elif oe >= ns and oe <= ne and os < ns: # right overlap
                     self.log.info('right ovl %s %s',ovl[0],ovl[1])
                     self.set_range_small(cursor, ovl[0], ovl[0], num2str(ns-1), now)
+                    self._add_change(cursor, ovl[0], ovl[1], 'M')
                 elif os >= ns and oe <= ne: # complete overlap, old is smaller
                     self.log.info('old smaller ovl %s %s',ovl[0],ovl[1])
                     self.delete_range(cursor, ovl[0])
+                    self._add_change(cursor, ovl[0], ovl[1], 'D')
                 elif os <= ns and oe >= ne: # complete overlap, new is smaller
                     self.log.info('new smaller ovl %s %s',ovl[0],ovl[1])
                     old = self._get_range(cursor, ovl[0])
                     self.set_range_small(cursor, ovl[0], ovl[0], num2str(ns-1), now)
                     self.insert_range(cursor, num2str(ne+1), ovl[1],
                             old[2], old[3], now, '', safe=True)
+                    self._add_change(cursor, ovl[0], ovl[1], 'M')
+                    self._add_change(cursor, num2str(ne+1), ovl[1], 'A')
             if do_insert:
                 row = list(row)
                 self.insert_range(cursor, safe=True, *row)
+                self._add_change(cursor, row[0], row[1], 'A')
         self.conn.commit()
         cursor.close()
         endtime = time.clock()
@@ -391,3 +432,10 @@ W7d77Yq4f2BRkGFp/2Jz
                 [start])
         return True
 
+    def ranges_empty(self):
+        q = 'select count(*)=0 from numbex_ranges'
+        c = self.conn.cursor()
+        c.execute(q)
+        r = list(c)[0][0]
+        c.close()
+        return r
