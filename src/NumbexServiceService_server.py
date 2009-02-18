@@ -28,6 +28,18 @@ receiveUpdates = GED("http://numbex/", "receiveUpdates").pyclass
 
 receiveUpdatesResponse = GED("http://numbex/", "receiveUpdatesResponse").pyclass
 
+getPublicKeys = GED("http://numbex/", "getPublicKeys").pyclass
+
+getPublicKeysResponse = GED("http://numbex/", "getPublicKeysResponse").pyclass
+
+receivePublicKey = GED("http://numbex/", "receivePublicKey").pyclass
+
+receivePublicKeyResponse = GED("http://numbex/", "receivePublicKeyResponse").pyclass
+
+removePublicKey = GED("http://numbex/", "removePublicKey").pyclass
+
+removePublicKeyResponse = GED("http://numbex/", "removePublicKeyResponse").pyclass
+
 
 # Service Skeletons
 class NumbexServiceService(ServiceSOAPBinding):
@@ -64,4 +76,25 @@ class NumbexServiceService(ServiceSOAPBinding):
 
     soapAction['receiveUpdates'] = 'soap_receiveUpdates'
     root[(receiveUpdates.typecode.nspname,receiveUpdates.typecode.pname)] = 'soap_receiveUpdates'
+
+    def soap_getPublicKeys(self, ps, **kw):
+        request = ps.Parse(getPublicKeys.typecode)
+        return request,getPublicKeysResponse()
+
+    soapAction['getPublicKeys'] = 'soap_getPublicKeys'
+    root[(getPublicKeys.typecode.nspname,getPublicKeys.typecode.pname)] = 'soap_getPublicKeys'
+
+    def soap_receivePublicKey(self, ps, **kw):
+        request = ps.Parse(receivePublicKey.typecode)
+        return request,receivePublicKeyResponse()
+
+    soapAction['receivePublicKey'] = 'soap_receivePublicKey'
+    root[(receivePublicKey.typecode.nspname,receivePublicKey.typecode.pname)] = 'soap_receivePublicKey'
+
+    def soap_removePublicKey(self, ps, **kw):
+        request = ps.Parse(removePublicKey.typecode)
+        return request,removePublicKeyResponse()
+
+    soapAction['removePublicKey'] = 'soap_removePublicKey'
+    root[(removePublicKey.typecode.nspname,removePublicKey.typecode.pname)] = 'soap_removePublicKey'
 

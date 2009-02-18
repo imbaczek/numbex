@@ -168,6 +168,121 @@ class ns0:
             Holder.__name__ = "getUnsignedResponse_Holder"
             self.pyclass = Holder
 
+    class getPublicKeys_Def(ZSI.TCcompound.ComplexType, TypeDefinition):
+        schema = "http://numbex/"
+        type = (schema, "getPublicKeys")
+        def __init__(self, pname, ofwhat=(), attributes=None, extend=False, restrict=False, **kw):
+            ns = ns0.getPublicKeys_Def.schema
+            TClist = [ZSI.TC.String(pname="parameter", aname="_parameter", minOccurs=0, maxOccurs=1, nillable=False, typed=False, encoded=kw.get("encoded"))]
+            self.attribute_typecode_dict = attributes or {}
+            if extend: TClist += ofwhat
+            if restrict: TClist = ofwhat
+            ZSI.TCcompound.ComplexType.__init__(self, None, TClist, pname=pname, inorder=0, **kw)
+            class Holder:
+                typecode = self
+                def __init__(self):
+                    # pyclass
+                    self._parameter = None
+                    return
+            Holder.__name__ = "getPublicKeys_Holder"
+            self.pyclass = Holder
+
+    class getPublicKeysResponse_Def(ZSI.TCcompound.ComplexType, TypeDefinition):
+        schema = "http://numbex/"
+        type = (schema, "getPublicKeysResponse")
+        def __init__(self, pname, ofwhat=(), attributes=None, extend=False, restrict=False, **kw):
+            ns = ns0.getPublicKeysResponse_Def.schema
+            TClist = [ZSI.TC.String(pname="return", aname="_return", minOccurs=0, maxOccurs=1, nillable=False, typed=False, encoded=kw.get("encoded"))]
+            self.attribute_typecode_dict = attributes or {}
+            if extend: TClist += ofwhat
+            if restrict: TClist = ofwhat
+            ZSI.TCcompound.ComplexType.__init__(self, None, TClist, pname=pname, inorder=0, **kw)
+            class Holder:
+                typecode = self
+                def __init__(self):
+                    # pyclass
+                    self._return = None
+                    return
+            Holder.__name__ = "getPublicKeysResponse_Holder"
+            self.pyclass = Holder
+
+    class receivePublicKey_Def(ZSI.TCcompound.ComplexType, TypeDefinition):
+        schema = "http://numbex/"
+        type = (schema, "receivePublicKey")
+        def __init__(self, pname, ofwhat=(), attributes=None, extend=False, restrict=False, **kw):
+            ns = ns0.receivePublicKey_Def.schema
+            TClist = [ZSI.TC.String(pname="owner", aname="_owner", minOccurs=0, maxOccurs=1, nillable=False, typed=False, encoded=kw.get("encoded")), ZSI.TC.String(pname="pubkey", aname="_pubkey", minOccurs=0, maxOccurs=1, nillable=False, typed=False, encoded=kw.get("encoded"))]
+            self.attribute_typecode_dict = attributes or {}
+            if extend: TClist += ofwhat
+            if restrict: TClist = ofwhat
+            ZSI.TCcompound.ComplexType.__init__(self, None, TClist, pname=pname, inorder=0, **kw)
+            class Holder:
+                typecode = self
+                def __init__(self):
+                    # pyclass
+                    self._owner = None
+                    self._pubkey = None
+                    return
+            Holder.__name__ = "receivePublicKey_Holder"
+            self.pyclass = Holder
+
+    class receivePublicKeyResponse_Def(ZSI.TCcompound.ComplexType, TypeDefinition):
+        schema = "http://numbex/"
+        type = (schema, "receivePublicKeyResponse")
+        def __init__(self, pname, ofwhat=(), attributes=None, extend=False, restrict=False, **kw):
+            ns = ns0.receivePublicKeyResponse_Def.schema
+            TClist = [ZSI.TC.Boolean(pname="return", aname="_return", minOccurs=0, maxOccurs=1, nillable=False, typed=False, encoded=kw.get("encoded"))]
+            self.attribute_typecode_dict = attributes or {}
+            if extend: TClist += ofwhat
+            if restrict: TClist = ofwhat
+            ZSI.TCcompound.ComplexType.__init__(self, None, TClist, pname=pname, inorder=0, **kw)
+            class Holder:
+                typecode = self
+                def __init__(self):
+                    # pyclass
+                    self._return = None
+                    return
+            Holder.__name__ = "receivePublicKeyResponse_Holder"
+            self.pyclass = Holder
+
+    class removePublicKey_Def(ZSI.TCcompound.ComplexType, TypeDefinition):
+        schema = "http://numbex/"
+        type = (schema, "removePublicKey")
+        def __init__(self, pname, ofwhat=(), attributes=None, extend=False, restrict=False, **kw):
+            ns = ns0.removePublicKey_Def.schema
+            TClist = [ZSI.TC.String(pname="parameter", aname="_parameter", minOccurs=0, maxOccurs=1, nillable=False, typed=False, encoded=kw.get("encoded"))]
+            self.attribute_typecode_dict = attributes or {}
+            if extend: TClist += ofwhat
+            if restrict: TClist = ofwhat
+            ZSI.TCcompound.ComplexType.__init__(self, None, TClist, pname=pname, inorder=0, **kw)
+            class Holder:
+                typecode = self
+                def __init__(self):
+                    # pyclass
+                    self._parameter = None
+                    return
+            Holder.__name__ = "removePublicKey_Holder"
+            self.pyclass = Holder
+
+    class removePublicKeyResponse_Def(ZSI.TCcompound.ComplexType, TypeDefinition):
+        schema = "http://numbex/"
+        type = (schema, "removePublicKeyResponse")
+        def __init__(self, pname, ofwhat=(), attributes=None, extend=False, restrict=False, **kw):
+            ns = ns0.removePublicKeyResponse_Def.schema
+            TClist = [ZSI.TC.Boolean(pname="return", aname="_return", minOccurs=0, maxOccurs=1, nillable=False, typed=False, encoded=kw.get("encoded"))]
+            self.attribute_typecode_dict = attributes or {}
+            if extend: TClist += ofwhat
+            if restrict: TClist = ofwhat
+            ZSI.TCcompound.ComplexType.__init__(self, None, TClist, pname=pname, inorder=0, **kw)
+            class Holder:
+                typecode = self
+                def __init__(self):
+                    # pyclass
+                    self._return = None
+                    return
+            Holder.__name__ = "removePublicKeyResponse_Holder"
+            self.pyclass = Holder
+
     class getData_Dec(ElementDeclaration):
         literal = "getData"
         schema = "http://numbex/"
@@ -287,5 +402,95 @@ class ns0:
 
             ns0.receiveUpdatesResponse_Def.__init__(self, **kw)
             if self.pyclass is not None: self.pyclass.__name__ = "receiveUpdatesResponse_Dec_Holder"
+
+    class getPublicKeys_Dec(ElementDeclaration):
+        literal = "getPublicKeys"
+        schema = "http://numbex/"
+        substitutionGroup = None
+        def __init__(self, **kw):
+            kw["pname"] = ("http://numbex/","getPublicKeys")
+            kw["aname"] = "_getPublicKeys"
+            if ns0.getPublicKeys_Def not in ns0.getPublicKeys_Dec.__bases__:
+                bases = list(ns0.getPublicKeys_Dec.__bases__)
+                bases.insert(0, ns0.getPublicKeys_Def)
+                ns0.getPublicKeys_Dec.__bases__ = tuple(bases)
+
+            ns0.getPublicKeys_Def.__init__(self, **kw)
+            if self.pyclass is not None: self.pyclass.__name__ = "getPublicKeys_Dec_Holder"
+
+    class getPublicKeysResponse_Dec(ElementDeclaration):
+        literal = "getPublicKeysResponse"
+        schema = "http://numbex/"
+        substitutionGroup = None
+        def __init__(self, **kw):
+            kw["pname"] = ("http://numbex/","getPublicKeysResponse")
+            kw["aname"] = "_getPublicKeysResponse"
+            if ns0.getPublicKeysResponse_Def not in ns0.getPublicKeysResponse_Dec.__bases__:
+                bases = list(ns0.getPublicKeysResponse_Dec.__bases__)
+                bases.insert(0, ns0.getPublicKeysResponse_Def)
+                ns0.getPublicKeysResponse_Dec.__bases__ = tuple(bases)
+
+            ns0.getPublicKeysResponse_Def.__init__(self, **kw)
+            if self.pyclass is not None: self.pyclass.__name__ = "getPublicKeysResponse_Dec_Holder"
+
+    class receivePublicKey_Dec(ElementDeclaration):
+        literal = "receivePublicKey"
+        schema = "http://numbex/"
+        substitutionGroup = None
+        def __init__(self, **kw):
+            kw["pname"] = ("http://numbex/","receivePublicKey")
+            kw["aname"] = "_receivePublicKey"
+            if ns0.receivePublicKey_Def not in ns0.receivePublicKey_Dec.__bases__:
+                bases = list(ns0.receivePublicKey_Dec.__bases__)
+                bases.insert(0, ns0.receivePublicKey_Def)
+                ns0.receivePublicKey_Dec.__bases__ = tuple(bases)
+
+            ns0.receivePublicKey_Def.__init__(self, **kw)
+            if self.pyclass is not None: self.pyclass.__name__ = "receivePublicKey_Dec_Holder"
+
+    class receivePublicKeyResponse_Dec(ElementDeclaration):
+        literal = "receivePublicKeyResponse"
+        schema = "http://numbex/"
+        substitutionGroup = None
+        def __init__(self, **kw):
+            kw["pname"] = ("http://numbex/","receivePublicKeyResponse")
+            kw["aname"] = "_receivePublicKeyResponse"
+            if ns0.receivePublicKeyResponse_Def not in ns0.receivePublicKeyResponse_Dec.__bases__:
+                bases = list(ns0.receivePublicKeyResponse_Dec.__bases__)
+                bases.insert(0, ns0.receivePublicKeyResponse_Def)
+                ns0.receivePublicKeyResponse_Dec.__bases__ = tuple(bases)
+
+            ns0.receivePublicKeyResponse_Def.__init__(self, **kw)
+            if self.pyclass is not None: self.pyclass.__name__ = "receivePublicKeyResponse_Dec_Holder"
+
+    class removePublicKey_Dec(ElementDeclaration):
+        literal = "removePublicKey"
+        schema = "http://numbex/"
+        substitutionGroup = None
+        def __init__(self, **kw):
+            kw["pname"] = ("http://numbex/","removePublicKey")
+            kw["aname"] = "_removePublicKey"
+            if ns0.removePublicKey_Def not in ns0.removePublicKey_Dec.__bases__:
+                bases = list(ns0.removePublicKey_Dec.__bases__)
+                bases.insert(0, ns0.removePublicKey_Def)
+                ns0.removePublicKey_Dec.__bases__ = tuple(bases)
+
+            ns0.removePublicKey_Def.__init__(self, **kw)
+            if self.pyclass is not None: self.pyclass.__name__ = "removePublicKey_Dec_Holder"
+
+    class removePublicKeyResponse_Dec(ElementDeclaration):
+        literal = "removePublicKeyResponse"
+        schema = "http://numbex/"
+        substitutionGroup = None
+        def __init__(self, **kw):
+            kw["pname"] = ("http://numbex/","removePublicKeyResponse")
+            kw["aname"] = "_removePublicKeyResponse"
+            if ns0.removePublicKeyResponse_Def not in ns0.removePublicKeyResponse_Dec.__bases__:
+                bases = list(ns0.removePublicKeyResponse_Dec.__bases__)
+                bases.insert(0, ns0.removePublicKeyResponse_Def)
+                ns0.removePublicKeyResponse_Dec.__bases__ = tuple(bases)
+
+            ns0.removePublicKeyResponse_Def.__init__(self, **kw)
+            if self.pyclass is not None: self.pyclass.__name__ = "removePublicKeyResponse_Dec_Holder"
 
 # end class ns0 (tns: http://numbex/)

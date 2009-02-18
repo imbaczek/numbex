@@ -20,6 +20,18 @@
 
   <xs:element name="receiveUpdatesResponse" nillable="true" type="tns:receiveUpdatesResponse"/>
 
+  <xs:element name="getPublicKeys" nillable="true" type="tns:getPublicKeys"/>
+
+  <xs:element name="getPublicKeysResponse" nillable="true" type="tns:getPublicKeysResponse"/>
+
+  <xs:element name="receivePublicKey" nillable="true" type="tns:receivePublicKey"/>
+
+  <xs:element name="receivePublicKeyResponse" nillable="true" type="tns:receivePublicKeyResponse"/>
+
+  <xs:element name="removePublicKey" nillable="true" type="tns:removePublicKey"/>
+
+  <xs:element name="removePublicKeyResponse" nillable="true" type="tns:removePublicKeyResponse"/>
+
   <xs:complexType name="getData">
     <xs:sequence/>
   </xs:complexType>
@@ -65,6 +77,43 @@
     </xs:sequence>
   </xs:complexType>
 
+  <xs:complexType name="getPublicKeys">
+    <xs:sequence>
+      <xs:element name="parameter" type="xs:string" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="getPublicKeysResponse">
+    <xs:sequence>
+      <xs:element name="return" type="xs:string" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="receivePublicKey">
+    <xs:sequence>
+      <xs:element name="owner" type="xs:string" minOccurs="0"/>
+      <xs:element name="pubkey" type="xs:string" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="receivePublicKeyResponse">
+    <xs:sequence>
+      <xs:element name="return" type="xs:boolean" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="removePublicKey">
+    <xs:sequence>
+      <xs:element name="parameter" type="xs:string" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="removePublicKeyResponse">
+    <xs:sequence>
+      <xs:element name="return" type="xs:boolean" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
     </xsd:schema>
   </types>
   <message name="getData">
@@ -91,6 +140,24 @@
   <message name="receiveUpdatesResponse">
     <part name="parameters" element="tns:receiveUpdatesResponse"/>
   </message>
+  <message name="getPublicKeys">
+    <part name="parameters" element="tns:getPublicKeys"/>
+  </message>
+  <message name="getPublicKeysResponse">
+    <part name="parameters" element="tns:getPublicKeysResponse"/>
+  </message>
+  <message name="receivePublicKey">
+    <part name="parameters" element="tns:receivePublicKey"/>
+  </message>
+  <message name="receivePublicKeyResponse">
+    <part name="parameters" element="tns:receivePublicKeyResponse"/>
+  </message>
+  <message name="removePublicKey">
+    <part name="parameters" element="tns:removePublicKey"/>
+  </message>
+  <message name="removePublicKeyResponse">
+    <part name="parameters" element="tns:removePublicKeyResponse"/>
+  </message>
   <portType name="NumbexService">
     <operation name="getData">
       <input message="tns:getData"/>
@@ -107,6 +174,18 @@
     <operation name="receiveUpdates">
       <input message="tns:receiveUpdates"/>
       <output message="tns:receiveUpdatesResponse"/>
+    </operation>
+    <operation name="getPublicKeys">
+      <input message="tns:getPublicKeys"/>
+      <output message="tns:getPublicKeysResponse"/>
+    </operation>
+    <operation name="receivePublicKey">
+      <input message="tns:receivePublicKey"/>
+      <output message="tns:receivePublicKeyResponse"/>
+    </operation>
+    <operation name="removePublicKey">
+      <input message="tns:removePublicKey"/>
+      <output message="tns:removePublicKeyResponse"/>
     </operation>
   </portType>
   <binding name="NumbexServicePortBinding" type="tns:NumbexService">
@@ -140,6 +219,33 @@
     </operation>
     <operation name="receiveUpdates">
       <soap:operation soapAction="receiveUpdates"/>
+      <input>
+        <soap:body use="literal"/>
+      </input>
+      <output>
+        <soap:body use="literal"/>
+      </output>
+    </operation>
+    <operation name="getPublicKeys">
+      <soap:operation soapAction="getPublicKeys"/>
+      <input>
+        <soap:body use="literal"/>
+      </input>
+      <output>
+        <soap:body use="literal"/>
+      </output>
+    </operation>
+    <operation name="receivePublicKey">
+      <soap:operation soapAction="receivePublicKey"/>
+      <input>
+        <soap:body use="literal"/>
+      </input>
+      <output>
+        <soap:body use="literal"/>
+      </output>
+    </operation>
+    <operation name="removePublicKey">
+      <soap:operation soapAction="removePublicKey"/>
       <input>
         <soap:body use="literal"/>
       </input>

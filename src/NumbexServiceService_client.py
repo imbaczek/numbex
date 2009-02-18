@@ -70,6 +70,36 @@ class NumbexServicePortBindingSOAP:
         response = self.binding.Receive(receiveUpdatesResponse.typecode)
         return response
 
+    # op: getPublicKeys
+    def getPublicKeys(self, request, **kw):
+        if isinstance(request, getPublicKeys) is False:
+            raise TypeError, "%s incorrect request type" % (request.__class__)
+        # no input wsaction
+        self.binding.Send(None, None, request, soapaction="getPublicKeys", **kw)
+        # no output wsaction
+        response = self.binding.Receive(getPublicKeysResponse.typecode)
+        return response
+
+    # op: receivePublicKey
+    def receivePublicKey(self, request, **kw):
+        if isinstance(request, receivePublicKey) is False:
+            raise TypeError, "%s incorrect request type" % (request.__class__)
+        # no input wsaction
+        self.binding.Send(None, None, request, soapaction="receivePublicKey", **kw)
+        # no output wsaction
+        response = self.binding.Receive(receivePublicKeyResponse.typecode)
+        return response
+
+    # op: removePublicKey
+    def removePublicKey(self, request, **kw):
+        if isinstance(request, removePublicKey) is False:
+            raise TypeError, "%s incorrect request type" % (request.__class__)
+        # no input wsaction
+        self.binding.Send(None, None, request, soapaction="removePublicKey", **kw)
+        # no output wsaction
+        response = self.binding.Receive(removePublicKeyResponse.typecode)
+        return response
+
 getData = GED("http://numbex/", "getData").pyclass
 
 getDataResponse = GED("http://numbex/", "getDataResponse").pyclass
@@ -85,3 +115,15 @@ getUpdatesResponse = GED("http://numbex/", "getUpdatesResponse").pyclass
 receiveUpdates = GED("http://numbex/", "receiveUpdates").pyclass
 
 receiveUpdatesResponse = GED("http://numbex/", "receiveUpdatesResponse").pyclass
+
+getPublicKeys = GED("http://numbex/", "getPublicKeys").pyclass
+
+getPublicKeysResponse = GED("http://numbex/", "getPublicKeysResponse").pyclass
+
+receivePublicKey = GED("http://numbex/", "receivePublicKey").pyclass
+
+receivePublicKeyResponse = GED("http://numbex/", "receivePublicKeyResponse").pyclass
+
+removePublicKey = GED("http://numbex/", "removePublicKey").pyclass
+
+removePublicKeyResponse = GED("http://numbex/", "removePublicKeyResponse").pyclass
