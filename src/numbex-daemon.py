@@ -19,6 +19,9 @@ from SimpleXMLRPCServer import SimpleXMLRPCServer, SimpleXMLRPCDispatcher, \
         SimpleXMLRPCRequestHandler, Fault
 from Queue import Queue
 
+from ZSI.ServiceContainer import AsServer
+
+from numbex_server import MyNumbexService
 from tracker_client import NumbexPeer
 from gitdb import NumbexRepo
 from database import Database
@@ -251,6 +254,15 @@ class NumbexDaemon(object):
     def shutdown(self):
         self._exit()
 
+    def _soap_start(self):
+        port = self.cfg.getint('SOAP', 'port')
+        self.log.info("starting SOAP controller on port %s...", port)
+        dbpath = os.path.expanduser(self.cfg.get('DATABASE', 'path'))
+        t = threading.Thread(target=AsServer,
+                kwargs=dict(port=port, services=[MyNumbexService(dbpath),]))
+        t.daemon = True
+        t.start()
+
     def _startup(self):
         gitpath = os.path.expanduser(self.cfg.get('GIT', 'path'))
         self.db = Database(os.path.expanduser(self.cfg.get('DATABASE', 'path')))
@@ -265,6 +277,7 @@ class NumbexDaemon(object):
         self.git.start_daemon(self.cfg.getint('GIT', 'daemon_port'))
         self.p2p_start()
         self.updater_start()
+        self._soap_start()
         signal.signal(signal.SIGTERM, self._exit)
 
     def _main(self):
