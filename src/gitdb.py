@@ -96,9 +96,6 @@ Signature: $sig''')
         if delete is not None:
             for k in delete:
                 path = self.make_repo_path(k)
-                print 'deleting', path
-                record = self.get_range(k)
-                print record
                 del shelf[path]
         for r in data:
             start, end, sip, owner, mdate, rsasig = r
