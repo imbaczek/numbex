@@ -334,7 +334,7 @@ Signature: $sig''')
             if self.daemon.poll() is None:
                 self.log.info("killing daemon")
                 os.kill(self.daemon.pid, signal.SIGKILL)
-                self.daemon = None
+            self.daemon = None
 
     def dispose(self):
         self.sync()
