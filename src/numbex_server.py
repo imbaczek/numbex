@@ -16,6 +16,7 @@ from NumbexServiceService_server import NumbexServiceService
 
 # database support
 from database import Database
+import crypto
 
 # Create a Server implementation by inheritance
 class MyNumbexService(NumbexServiceService):
@@ -60,6 +61,32 @@ class MyNumbexService(NumbexServiceService):
     def soap_getUnsigned(self, ps, **kw):
         request, response = NumbexServiceService.soap_getUnsigned(self, ps, **kw)
         response._return = self._transform_to_csv(self.db.get_data_unsigned())
+        return request, response
+
+    def soap_getPublicKeys(self, ps, **kw):
+        request, response = NumbexServiceService.soap_getPublicKeys(self, ps, **kw)
+        pubkeys = self.db.get_public_keys_ids(request._parameter)
+
+        ret = ['id = %s\n%s'%(i, k) for i, k in pubkeys]
+        response._return = '\n'.join(ret)
+        return request, response
+
+    def soap_removePublicKey(self, ps, **kw):
+        request, response = NumbexServiceService.soap_removePublicKey(self, ps, **kw)
+        self.db.remove_public_key(request._parameter)
+        response._return = True
+        return request, response
+
+    def soap_receivePublicKey(self, ps, **kw):
+        request, response = NumbexServiceService.soap_receivePublicKey(self, ps, **kw)
+        owner = request._owner
+        pubkeystr = request._pubkey
+        pubkey = crypto.parse_pub_key(pubkeystr)
+        if not pubkey.check_key():
+            response._return = False
+        else:
+            response._return = True
+            self.db.add_public_key(owner, pubkeystr)
         return request, response
 
 def main():

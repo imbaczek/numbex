@@ -439,3 +439,27 @@ W7d77Yq4f2BRkGFp/2Jz
         r = list(c)[0][0]
         c.close()
         return r
+
+    
+    def get_public_keys_ids(self, owner):
+        q = 'select id, pubkey from numbex_pubkeys where owner = ?'
+        c = self.conn.cursor()
+        c.execute(q, [owner])
+        r = list(c)
+        c.close()
+        return r
+
+    def remove_public_key(self, keyid):
+        q = 'delete from numbex_pubkeys where id = ?'
+        c = self.conn.cursor()
+        c.execute(q, [keyid])
+        r = list(c)
+        c.close()
+        return r
+
+    def add_public_key(self, owner, pubkey):
+        q = '''insert into numbex_pubkeys (owner, pubkey)
+               values (?, ?)'''
+        c = self.conn.cursor()
+        c.execute(q, [owner, pubkey])
+        c.close()
