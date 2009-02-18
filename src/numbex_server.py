@@ -3,11 +3,12 @@
 from optparse import OptionParser
 from datetime import datetime
 import time
+import logging
 from cStringIO import StringIO
 import csv
 
 # Import the ZSI stuff you'd need no matter what
-from ZSI.wstools import logging
+from ZSI.wstools import logging as zsilogging
 from ZSI.ServiceContainer import AsServer
 
 # Import the generated Server Object
@@ -71,10 +72,11 @@ def main():
         metavar="DBFILE", default="tmp.db")
     options, args = op.parse_args()
     # set the loglevel according to cmd line arg
+    logging.basicConfig(level=logging.INFO)
     if options.loglevel:
-        loglevel = eval(options.loglevel, logging.__dict__)
-        logger = logging.getLogger("")
-        logger.setLevel(loglevel)
+        loglevel = eval(options.loglevel, zsilogging.__dict__)
+        logger = zsilogging.getLogger("")
+        logger.setLevel(zsiloglevel)
     # Run the server with a given list services
     AsServer(port=options.port, services=[MyNumbexService(options.database),])
 

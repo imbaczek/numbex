@@ -8,6 +8,8 @@ import sys
 import threading
 import os
 import signal
+import random
+import re
 try:
     from cStringIO import StringIO
 except ImportError:
@@ -15,7 +17,7 @@ except ImportError:
 from ConfigParser import SafeConfigParser as ConfigParser
 from SimpleXMLRPCServer import SimpleXMLRPCServer, SimpleXMLRPCDispatcher, \
         SimpleXMLRPCRequestHandler, Fault
-
+from Queue import Queue
 
 from tracker_client import NumbexPeer
 from gitdb import NumbexRepo
@@ -39,21 +41,111 @@ class NumbexDaemon(object):
         self.db = None
         self.p2p_running = False
         self.log = logging.getLogger("daemon")
+        self.updater_running = False
+        self.updater_reqs = Queue(20)
+        self.last_update = 0
 
     def reload_config(self, configname):
         newcfg = read_config(confname)
         # TODO do stuff that needs to be done after config changes
         self.cfg = newcfg
 
-    def p2p_get_peers(self):
+    def _p2p_get_peer_set(self):
         s = set()
         for c in self.clients:
             for p in c.peers:
                 s.add(p)
+        return s
+
+    def p2p_get_peers(self):
+        s = self._p2p_get_peer_set()
         return list(s)
-        
-    def p2p_get_updates(self):
-        pass
+ 
+    def p2p_get_updates(self, requested=None):
+        try:
+            self.updater_reqs.put_nowait(requested)
+            return True
+        except:
+            return False
+
+    def _p2p_get_updates(self, requested=None, git=None):
+        if git is None:
+            git = self.git
+        # if no peers specificalyl requested, pick a random one
+        if requested is None:
+            self.log.info("get updates from random peer...")
+            peers = self.p2p_get_peers()
+            if peers:
+                requested = [random.choice(peers)]
+            else:
+                return False, "no known peers"
+        else:
+            self.log.info("get updates")
+            peers = self._p2p_get_peer_set()
+            for p in requested:
+                if p not in peers:
+                    return False, "%s is an unknown peer"%p
+        for p in requested:
+            self.log.info("fetching from %s...", p)
+            start = time.time()
+            remote = re.sub(r'[^a-zA-Z0-9_-]', '', 'remote_%s' % p)
+            git.add_remote(remote, p, force=True)
+            git.fetch_from_remote(remote)
+            git.merge('%s/%s'%(remote, 'numbex'))
+            git.reload()
+            end = time.time()
+            self.log.info("fetch and merge complete in %.3fs", end-start)
+        return True, ""
+
+    def _updater_thread(self):
+        self.log.info("starting update processor")
+        # need our own database connection here
+        # and our own git, too, since it needs public keys
+        db = Database(os.path.expanduser(self.cfg.get('DATABASE', 'path')))
+        git = NumbexRepo(os.path.expanduser(self.cfg.get('GIT', 'path')),
+                db.get_public_keys)
+        while self.updater_running:
+            requested = self.updater_reqs.get()
+            if not self.updater_running:
+                break
+            try:
+                r, msg = self._p2p_get_updates(requested, git=git)
+                if not r:
+                    self.log.warn("p2p_get_updates: %s", msg)
+                self._import_from_p2p(db=db)
+                self.last_update = time.time()
+            except:
+                self.log.exception("error in p2p_get_updates")
+
+    def _updater_scheduler_thread(self):
+        ival = self.cfg.getint('PEER', 'fetch_interval') 
+        self.log.info("starting update scheduler, interval %s", ival)
+        while self.updater_running:
+            ival = self.cfg.getint('PEER', 'fetch_interval') 
+            time.sleep(ival)
+            if not self.updater_running:
+                break
+            self.updater_reqs.put(None)
+
+    def updater_start(self):
+        if self.updater_running:
+            return False
+        if self.cfg.getint('PEER', 'fetch_interval') <= 0:
+            self.log.warn("updater disabled due to intveral=%s", )
+            return False
+        self.updater_running = True
+        t = threading.Thread(target=self._updater_scheduler_thread)
+        t.daemon = True
+        t.start()
+        t = threading.Thread(target=self._updater_thread)
+        t.daemon = True
+        t.start()
+        return True
+
+    def updater_stop(self):
+        self.log.info("stopping updater threads")
+        self.updater_running = False
+        return True
 
     def p2p_stop(self):
         if self.p2p_running:
@@ -63,11 +155,12 @@ class NumbexDaemon(object):
             p.stop()
         self.clients = []
         self.p2p_running = False
+        return True
 
     def p2p_start(self):
         if self.p2p_running:
             self.log.info("p2p already running")
-            return
+            return False
         self.log.info("starting p2p peers")
         user = self.cfg.get('PEER', 'user')
         auth = self.cfg.get('PEER', 'auth')
@@ -81,15 +174,16 @@ class NumbexDaemon(object):
             t.daemon = True
             t.start()
         self.p2p_running = True
+        return True
 
-    def import_from_p2p(self, force_all=False):
-        if force_all or self.db.ranges_empty():
+    def _import_from_p2p(self, db, force_all=False):
+        if force_all or db.ranges_empty():
             if force_all:
-                self.log.info("forced import")
+                self.log.info("forced import of everything")
             else:
                 self.log.info("database empty, importing all...")
             start = time.time()   
-            r = self.db.update_data(self.git.export_data_all())
+            r = db.update_data(self.git.export_data_all())
             end = time.time()
             if r:
                 self.log.info("database import completed in %.3f", end-start)
@@ -98,7 +192,7 @@ class NumbexDaemon(object):
                 self.log.warn("database import failed, time %.3f", end-start)
                 return False, "update_data returned False"
 
-        if self.db.has_changed_data():
+        if db.has_changed_data():
             return False, "database has changed data"
 
         hours = self.cfg.getint('GIT', 'export_timeout')
@@ -106,7 +200,7 @@ class NumbexDaemon(object):
         self.log.info("importing records modified since %s into the database",
                 since)
         start = time.time()
-        r = self.db.update_data(self.git.export_data_since(since))
+        r = db.update_data(self.git.export_data_since(since))
         end = time.time()
         if r:
             self.log.info("database import completed in %.3f", end-start)
@@ -114,6 +208,9 @@ class NumbexDaemon(object):
         else:
             self.log.info("database import failed, time %.3f", end-start)
             return False, "update_data returned False"
+
+    def import_from_p2p(self, force_all=False):
+        return self._import_from_p2p(self.db, force_all)
 
     def export_to_p2p(self):
         if not self.db.has_changed_data():
@@ -135,7 +232,21 @@ class NumbexDaemon(object):
         else:
             self.log.warn("import failed, time %.3f", end-start)
         return r
-        
+
+    def status(self):
+        return {
+            'flags': {
+                'p2p_running': self.p2p_running,
+                'updater_running': self.updater_running,
+            },
+            'p2p': {
+                'peers': self.p2p_get_peers(),
+                'trackers': [x.address for x in self.clients],
+            },
+            'updater': {
+                'last_update': self.last_update,
+            }
+        }
 
     def shutdown(self):
         self._exit()
@@ -153,6 +264,7 @@ class NumbexDaemon(object):
             self.export_to_p2p()
         self.git.start_daemon(self.cfg.getint('GIT', 'daemon_port'))
         self.p2p_start()
+        self.updater_start()
         signal.signal(signal.SIGTERM, self._exit)
 
     def _main(self):
@@ -164,6 +276,7 @@ class NumbexDaemon(object):
         try:
             host = self.cfg.get('GLOBAL', 'control_host')
             port = self.cfg.getint('GLOBAL', 'control_port')
+            self.log.info("starting control daemon on %s port %s", host, port)
             xmlrpc = SimpleXMLRPCServer((host, port))
             xmlrpc.register_instance(self)
             xmlrpc.serve_forever()
@@ -183,6 +296,7 @@ class NumbexDaemon(object):
         sys.exit(0)
 
     def _stop(self):
+        self.updater_stop()
         self.p2p_stop()
         if self.git is not None:
             self.git.dispose()
