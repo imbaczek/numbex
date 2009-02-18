@@ -68,7 +68,7 @@ Signature: $sig''')
         except KeyError:
             raise NumbexDBError('key not found: '+x)
 
-    def import_data(self, data):
+    def import_data(self, data, delete=None):
         '''data format: iterator of records in format produced by parse_record'''
         self.log.info('importing %s records...', len(data))
         tstart = time.time()
@@ -93,6 +93,13 @@ Signature: $sig''')
                 return False
 
         shelf = self.shelf
+        if delete is not None:
+            for k in delete:
+                path = self.make_repo_path(k)
+                print 'deleting', path
+                record = self.get_range(k)
+                print record
+                del shelf[path]
         for r in data:
             start, end, sip, owner, mdate, rsasig = r
             num = self.make_repo_path(start)

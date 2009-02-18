@@ -3,6 +3,7 @@ import unittest
 import datetime
 import os
 import time
+import logging
 
 from gitshelve import GitError
 
@@ -113,9 +114,16 @@ class RepoDataMixin(object):
                  'freeconet',
                  datetime.datetime(2009, 2, 11, 0, 15, 17, 457868),
                  'AAAAFQCWbSY9RGhJrFMroQnJhPtozMz2gA== AAAAFQCrULccnUwPwmQiIiv10oC26OdOKw==']
+        record4 = ['+481000',
+                '+485678',
+                'sip.freeconet.pl',
+                'freeconet',
+                datetime.datetime(2009, 2, 12, 12, 00, 00, 20406),
+                'AAAAFQCDaqtzhSvtTsqPEmjFdMBguNAxGw== AAAAFHqQvJlbHdp8aUScDZHUFlILeCQo']
         self.record1 = record1
         self.record2 = record2
         self.record3 = record3
+        self.record4 = record4
         self.data = data
 
 
@@ -239,5 +247,27 @@ class NumbexDBMergeTest3(NumbexDBMergeTestBase):
         self.assertEqual(self.repo2.get_range('+484000'), self.record1)
 
 
+class NumbexDBRevertTest(NumbexDBMergeTestBase):
+    def test_merge(self):
+        self.repo1.import_data([self.record1])
+        self.repo1.sync()
+        self.repo2.import_data([self.record2, self.record3])
+        self.repo2.sync()
+        self.repo2.fetch_from_remote('repo1')
+        self.repo2.merge('repo1/'+self.repo1.repobranch)
+        self.repo2.reload()
+        self.assertEqual(self.repo2.get_range('+484000'), self.record2)
+        self.assertEqual(self.repo2.get_range('+485000'), self.record3)
+        self.assertEqual(self.repo2.get_range('+481000'), self.data[0])
+        delete = ['+481000', '+484000', '+485000']
+        for k in delete:
+            print self.repo2.get_range(k)
+        self.assert_(self.repo2.import_data([self.record4], delete))
+        self.repo2.sync()
+        expected = [self.record4]
+        self.assertEqual(self.repo2.export_data_all(), expected)
+
+
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
     unittest.main()
