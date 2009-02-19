@@ -7,8 +7,10 @@ from string import Template
 import subprocess
 import signal
 import time
+import operator
 
 import gitshelve
+import quicksect
 
 import crypto
 import utils
@@ -132,6 +134,46 @@ Signature: $sig''')
             ret.append(self.parse_record(self.shelf[k]))
         ret.sort(key=lambda x: int(x[0]))
         return ret
+
+    def check_overlaps(self):
+        data = self.export_data_all()
+        it = iter(data)
+        first = it.next()
+        ivaltree = quicksect.IntervalNode(
+                quicksect.Feature(int(first[0]), int(first[1])))
+        for e in it:
+            ivaltree = ivaltree.insert(quicksect.Feature(
+                    int(e[0]), int(e[1])))
+        bad = {}
+        for e in data:
+            overlaps = ivaltree.find(int(e[0]), int(e[1]))
+            if len(overlaps) > 1:
+                bad[e[0]] = ['+'+str(x.start) for x in overlaps]
+                self.log.info("overlap detected: %s %s overlaps with %s",
+                    e[0], e[1],
+                    ', '.join('+%s +%s'%(x.start, x.stop)
+                            for x in overlaps if x.start != int(e[0])))
+        return bad
+
+    def fix_overlaps(self, overlaps=None):
+        fixed = set()
+        if overlaps is None:
+            overlaps = self.check_overlaps()
+        for r in overlaps:
+            if r in fixed:
+                continue
+            ovl = overlaps[r]
+            # find the most recent record from the overlapping set
+            # and delete the rest
+            records = [self.get_range(x) for x in ovl if x not in fixed]
+            m = max(records, key=operator.itemgetter(4))
+            shelf = self.shelf
+            for y in records:
+                if y != m:
+                    del shelf[self.make_repo_path(y[0])]
+                    fixed.add(y[0])
+            fixed.add(r)
+
 
     def export_data_since(self, since):
         if not isinstance(since, datetime.datetime):
