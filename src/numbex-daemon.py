@@ -305,7 +305,10 @@ class NumbexDaemon(object):
     def _exit(self, sig=None, frame=None):
         if sig is not None:
             self.log.info("received signal %s", sig)
-        self._stop()
+        try:
+            self._stop()
+        except:
+            self.log.exception('exception during exit ignored:')
         sys.exit(0)
 
     def _stop(self):
