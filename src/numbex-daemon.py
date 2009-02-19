@@ -126,6 +126,7 @@ class NumbexDaemon(object):
             if [None] == requested:
                 continue
             try:
+                self.gitlock.acquire()       
                 r, msg = self._p2p_get_updates(requested, git=git)
                 if not r:
                     self.log.warn("p2p_get_updates: %s", msg)
@@ -139,6 +140,8 @@ class NumbexDaemon(object):
                 self.last_update = time.time()
             except:
                 self.log.exception("error in p2p_get_updates")
+            finally:
+                self.gitlock.release()
         self.updater_worker_stopped = True
         self.log.info("update processor stopped")
 
