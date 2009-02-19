@@ -131,7 +131,11 @@ class NumbexDaemon(object):
                     self.log.warn("p2p_get_updates: %s", msg)
                 if not self.updater_running:
                     break
-                self._import_from_p2p(db=db)
+                if not self._import_from_p2p(db=db):
+                    self.log.warn("stopping p2p and updater threads, please resolve the problems with e.g. forced p2p-export")
+                    self.updater_stop()
+                    self.p2p_stop()
+                    break
                 self.last_update = time.time()
             except:
                 self.log.exception("error in p2p_get_updates")
