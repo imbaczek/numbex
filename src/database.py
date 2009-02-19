@@ -290,14 +290,23 @@ W7d77Yq4f2BRkGFp/2Jz
         # check for overlaps
         data.sort(key=lambda x: int(x[0]))
         prevs, preve = 0, 0
+        cursor = self.conn.cursor()
         for row in data:
             s, e = int(row[0]), int(row[1])
             if prevs <= s and preve >= s:
-                self.log.info("update data - invalid data %s %s, %s %s",
+                self.log.error("update data - invalid data %s %s, %s %s",
                         prevs, preve, s, e)
                 return False
+            # check owners
+            overlaps = self.overlapping_ranges(s, e)
+            for ovl in overlaps:
+                old = self._get_range(cursor, ovl[0])
+                if old[3] != row[3]:
+                    self.log.error("update data - %s %s overlaps with %s %s" \
+                            " which has a different owner (%s vs %s)",
+                            s, e, ovl[0], ovl[1], row[3], old[3])
+                    return False
             prevs, preve = s, e
-        cursor = self.conn.cursor()
         num2str = self._numeric2string
         now = datetime.now()
         for row in data:
