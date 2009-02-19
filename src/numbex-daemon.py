@@ -45,6 +45,8 @@ class NumbexDaemon(object):
         self.p2p_running = False
         self.log = logging.getLogger("daemon")
         self.updater_running = False
+        self.updater_sched_stopped = True
+        self.updater_worker_stopped = True
         self.updater_reqs = Queue(20)
         self.last_update = 0
 
@@ -107,34 +109,50 @@ class NumbexDaemon(object):
         db = Database(os.path.expanduser(self.cfg.get('DATABASE', 'path')))
         git = NumbexRepo(os.path.expanduser(self.cfg.get('GIT', 'path')),
                 db.get_public_keys)
+        self.updater_worker_stopped = False
         while self.updater_running:
             requested = self.updater_reqs.get()
             if not self.updater_running:
                 break
+            if [None] == requested:
+                continue
             try:
                 r, msg = self._p2p_get_updates(requested, git=git)
                 if not r:
                     self.log.warn("p2p_get_updates: %s", msg)
+                if not self.updater_running:
+                    break
                 self._import_from_p2p(db=db)
                 self.last_update = time.time()
             except:
                 self.log.exception("error in p2p_get_updates")
+        self.updater_worker_stopped = True
+        self.log.info("update processor stopped")
 
     def _updater_scheduler_thread(self):
         ival = self.cfg.getint('PEER', 'fetch_interval') 
         self.log.info("starting update scheduler, interval %s", ival)
+        self.updater_sched_stopped = False
         while self.updater_running:
             ival = self.cfg.getint('PEER', 'fetch_interval') 
             time.sleep(ival)
             if not self.updater_running:
                 break
             self.updater_reqs.put(None)
+        self.updater_sched_stopped = True
+        self.updater_reqs.put([None])
+        self.log.info("update scheduler stopped")
+
 
     def updater_start(self):
         if self.updater_running:
             return False
+        if not self.updater_sched_stopped or not self.updater_worker_stopped:
+            self.log.info("updater threads not stopped yet")
+            return False
         if self.cfg.getint('PEER', 'fetch_interval') <= 0:
-            self.log.warn("updater disabled due to intveral=%s", )
+            self.log.warn("updater disabled due to intveral=%s",
+                    self.cfg.getint('PEER', 'fetch_interval'))
             return False
         self.updater_running = True
         t = threading.Thread(target=self._updater_scheduler_thread)
