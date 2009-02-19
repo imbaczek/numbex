@@ -310,7 +310,7 @@ W7d77Yq4f2BRkGFp/2Jz
                 # special case: new == old; update DSA signature
                 # set signature to '' otherwise
                 if os == ns and oe == ne:
-                    old = self._get_range(cursor, ovl[0])
+                    old = list(self._get_range(cursor, ovl[0]))
                     if old == row:
                         self.log.info('nothing to do for %s %s', ovl[0], ovl[1])
                     elif old[:-1] == row[:-1]:
