@@ -41,6 +41,18 @@ check signatures and logs\n'''%msg)
             sys.stderr.write('p2p-stop failed, check logs\n')
         return r
 
+    def updater_stop(self, options, args):
+        r = self.rpc.updater_stop()
+        if not r:
+            sys.stderr.write('updater-stop failed, check logs\n')
+        return r
+
+    def updater_start(self, options, args):
+        r = self.rpc.updater_start()
+        if not r:
+            sys.stderr.write('updater-start failed, check logs\n')
+        return r
+
     def status(self, options, args):
         r = self.rpc.status()
         if not r:
@@ -53,6 +65,8 @@ check signatures and logs\n'''%msg)
         lastupdate = 'never' if not r['updater']['last_update'] else \
                 datetime.fromtimestamp(r['updater']['last_update'])
         print '%-20s: %s'%('last git update', lastupdate)
+        print '%-20s: %s'%('db has changed data',
+                r['database']['has_changed_data'])
         print
         print 'trackers:'
         for t in r['p2p']['trackers']:
@@ -76,11 +90,14 @@ def main():
     def help(options, args):
         print """Available commands:
 
-p2p-export\t\texport data to the p2p system from local database
-p2p-import\t\timport data from the p2p system to the local database
-p2p-start\t\tstart the p2p system, connect to trackers
-p2p-stop\t\tdisconnect from trackers
-status\t\tprint daemon status"""
+p2p-export   \texport data to the p2p system from local database
+p2p-import   \timport data from the p2p system to the local database
+p2p-start    \tstart the p2p system, connect to trackers
+p2p-stop     \tdisconnect from trackers
+status       \tprint daemon status
+updater-start\tstarts the updater thread
+updater-stop \tstops the updater thread
+  """
 
     dispatch = {
         'help':       help,
@@ -88,6 +105,8 @@ status\t\tprint daemon status"""
         'p2p-import': ctl.import_from_p2p,
         'p2p-start':  ctl.p2p_start,
         'p2p-stop':   ctl.p2p_stop,
+        'updater-stop': ctl.updater_stop,
+        'updater-start': ctl.updater_start,
         'status':     ctl.status,
     }
 
