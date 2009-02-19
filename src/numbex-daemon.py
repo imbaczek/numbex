@@ -102,6 +102,8 @@ class NumbexDaemon(object):
                 git.fetch_from_remote(remote)
                 git.merge('%s/%s'%(remote, 'numbex'))
                 git.reload()
+                git.fix_overlaps()
+                git.sync()
                 end = time.time()
                 self.log.info("fetch and merge complete in %.3fs", end-start)
             return True, ""
