@@ -151,6 +151,7 @@ class NumbexDaemon(object):
         return True
 
     def p2p_stop(self):
+        self.git.stop_daemon()
         if self.p2p_running:
             self.log.info("stopping p2p")
         # even if flag not set, cleaning up can't hurt
@@ -164,6 +165,7 @@ class NumbexDaemon(object):
         if self.p2p_running:
             self.log.info("p2p already running")
             return False
+        self.git.start_daemon(self.cfg.getint('GIT', 'daemon_port'))
         self.log.info("starting p2p peers")
         user = self.cfg.get('PEER', 'user')
         auth = self.cfg.get('PEER', 'auth')
@@ -274,7 +276,6 @@ class NumbexDaemon(object):
         elif not self.git:
             self.log.info("initial git repository empty")
             self.export_to_p2p()
-        self.git.start_daemon(self.cfg.getint('GIT', 'daemon_port'))
         self.p2p_start()
         self.updater_start()
         self._soap_start()
