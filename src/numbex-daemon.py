@@ -49,6 +49,7 @@ class NumbexDaemon(object):
         self.updater_worker_stopped = True
         self.updater_reqs = Queue(20)
         self.last_update = 0
+        self.gitlock = threading.Lock()
 
     def reload_config(self, configname):
         newcfg = read_config(confname)
@@ -90,17 +91,23 @@ class NumbexDaemon(object):
             for p in requested:
                 if p not in peers:
                     return False, "%s is an unknown peer"%p
-        for p in requested:
-            self.log.info("fetching from %s...", p)
-            start = time.time()
-            remote = re.sub(r'[^a-zA-Z0-9_-]', '', 'remote_%s' % p)
-            git.add_remote(remote, p, force=True)
-            git.fetch_from_remote(remote)
-            git.merge('%s/%s'%(remote, 'numbex'))
-            git.reload()
-            end = time.time()
-            self.log.info("fetch and merge complete in %.3fs", end-start)
-        return True, ""
+        try:
+            self.gitlock.acquire()
+            self.git.reload()
+            for p in requested:
+                self.log.info("fetching from %s...", p)
+                start = time.time()
+                remote = re.sub(r'[^a-zA-Z0-9_-]', '', 'remote_%s' % p)
+                git.add_remote(remote, p, force=True)
+                git.fetch_from_remote(remote)
+                git.merge('%s/%s'%(remote, 'numbex'))
+                git.reload()
+                end = time.time()
+                self.log.info("fetch and merge complete in %.3fs", end-start)
+            return True, ""
+        finally:
+            self.gitlock.release()
+            
 
     def _updater_thread(self):
         self.log.info("starting update processor")
@@ -235,10 +242,12 @@ class NumbexDaemon(object):
     def import_from_p2p(self, force_all=False):
         return self._import_from_p2p(self.db, force_all)
 
-    def export_to_p2p(self):
-        if not self.db.has_changed_data():
+    def export_to_p2p(self, force_all=False):
+        if not force_all and not self.db.has_changed_data():
             return True
         try:
+            self.gitlock.acquire()
+            self.git.reload()
             if self.git:
                 hours = self.cfg.getint('DATABASE', 'export_timeout')
                 since = datetime.datetime.now() - datetime.timedelta(hours)
@@ -256,6 +265,8 @@ class NumbexDaemon(object):
         except:
             self.log.exception("export_to_p2p")
             raise
+        finally:
+            self.gitlock.release()
         if r:
             self.log.info("import complete, time %.3f", end-start)
             self.db.clear_changed_data()
@@ -303,7 +314,9 @@ class NumbexDaemon(object):
             self.import_from_p2p()
         elif not self.git:
             self.log.info("initial git repository empty")
-            self.export_to_p2p()
+            r = self.export_to_p2p(force_all=True)
+            if not r:
+                self.log.error("import failed", msg)
         self.p2p_start()
         self.updater_start()
         self._soap_start()
