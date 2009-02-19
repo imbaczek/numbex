@@ -238,20 +238,27 @@ class NumbexDaemon(object):
     def export_to_p2p(self):
         if not self.db.has_changed_data():
             return True
-        if self.git:
-            hours = self.cfg.getint('DATABASE', 'export_timeout')
-            since = datetime.datetime.now() - datetime.timedelta(hours)
-            self.log.info("importing records since %s into git", since)
-            start = time.time()
-            r = self.git.import_data(self.db.get_data_since(since))
-            end = time.time()
-        else:
-            self.log.info("git repo empty, importing all records...")
-            start = time.time()
-            r = self.git.import_data(self.db.get_data_all())
-            end = time.time()
+        try:
+            if self.git:
+                hours = self.cfg.getint('DATABASE', 'export_timeout')
+                since = datetime.datetime.now() - datetime.timedelta(hours)
+                self.log.info("importing records since %s into git", since)
+                start = time.time()
+                delete = [x[0] for x in self.db.get_deleted_data()]
+                r = self.git.import_data(self.db.get_data_since(since),
+                        delete=delete)
+                end = time.time()
+            else:
+                self.log.info("git repo empty, importing all records...")
+                start = time.time()
+                r = self.git.import_data(self.db.get_data_all())
+                end = time.time()
+        except:
+            self.log.exception("export_to_p2p")
+            raise
         if r:
             self.log.info("import complete, time %.3f", end-start)
+            self.db.clear_changed_data()
         else:
             self.log.warn("import failed, time %.3f", end-start)
         return r
