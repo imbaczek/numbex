@@ -268,6 +268,9 @@ class NumbexDaemon(object):
             },
             'updater': {
                 'last_update': self.last_update,
+            },
+            'database': {
+                'has_changed_data': self.db.has_changed_data(),
             }
         }
 
