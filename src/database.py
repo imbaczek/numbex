@@ -312,7 +312,8 @@ W7d77Yq4f2BRkGFp/2Jz
         for row in data:
             ns, ne = int(row[0]), int(row[1])
             self.log.info('processing [%s]', ', '.join(map(str, row)))
-            do_insert = True
+            # empty sip address means "delete this range"
+            do_insert = (row[2] != "")
             overlaps = self.overlapping_ranges(int(row[0]), int(row[1]))
             for ovl in overlaps:
                 os, oe = int(ovl[0]), int(ovl[1])
@@ -320,7 +321,11 @@ W7d77Yq4f2BRkGFp/2Jz
                 # set signature to '' otherwise
                 if os == ns and oe == ne:
                     old = list(self._get_range(cursor, ovl[0]))
-                    if old == row:
+                    if not do_insert:
+                        self.log.info('deleting %s %s', ovl[0], ovl[1])
+                        self.delete_range(cursor, ovl[0])
+                        self._add_change(cursor, ovl[0], ovl[1], 'D')
+                    elif old == row:
                         self.log.info('nothing to do for %s %s', ovl[0], ovl[1])
                     elif old[:-1] == row[:-1]:
                         self.log.info('full equal, update sig %s %s',
