@@ -34,10 +34,16 @@ class NumbexRepo(object):
         '''transform a string like this:
 
 >>> x.make_repo_path('1234567')
-'123/456/7' '''
+'123/456/7'
+>>> x.make_repo_path('123456')
+'123/456/this'
+'''
         if len(number)%3 != 0:
             number += ' '*(3 - (len(number)%3))
-        return '/'.join(''.join(x) for x in zip(*[iter(number)]*3)).strip()
+            append = ''
+        else:
+            append = '/this'
+        return '/'.join(''.join(x) for x in zip(*[iter(number)]*3)).strip() + append
 
     def make_record(self, rangestart, rangeend, sip, owner, mdate, sig):
         if isinstance(mdate, datetime.datetime):

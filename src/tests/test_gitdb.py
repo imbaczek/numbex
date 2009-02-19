@@ -17,13 +17,13 @@ class NumbexDBPrimitiveTest(unittest.TestCase):
 
     def testMakePath(self):
         f = self.repo.make_repo_path
-        self.assertEqual(f(''), '')
+        self.assertEqual(f(''), '/this')
         self.assertEqual(f('a'), 'a')
         self.assertEqual(f('aa'), 'aa')
-        self.assertEqual(f('aaa'), 'aaa')
+        self.assertEqual(f('aaa'), 'aaa/this')
         self.assertEqual(f('aaaa'), 'aaa/a')
         self.assertEqual(f('aaaaa'), 'aaa/aa')
-        self.assertEqual(f('aaaaaa'), 'aaa/aaa')
+        self.assertEqual(f('aaaaaa'), 'aaa/aaa/this')
         self.assertEqual(f('aaaaaaa'), 'aaa/aaa/a')
         d = '48588887755'
         a = '485/888/877/55'
