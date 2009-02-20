@@ -223,6 +223,7 @@ class NumbexDaemon(object):
                 self.log.info("database empty, importing all...")
             start = time.time()   
             r = db.update_data(self.git.export_data_all())
+            db.clear_changed_data()
             end = time.time()
             if r:
                 self.log.info("database import completed in %.3f", end-start)
@@ -240,6 +241,7 @@ class NumbexDaemon(object):
                 since)
         start = time.time()
         r = db.update_data(self.git.export_data_since(since))
+        db.clear_changed_data()
         end = time.time()
         if r:
             self.log.info("database import completed in %.3f", end-start)
