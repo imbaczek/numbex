@@ -126,11 +126,21 @@ class RepoDataMixin(object):
                  'freeconet',
                  datetime.datetime(2009, 2, 10, 16, 51, 20, 999999),
                  'AAAAFD1tMMcsGbtf+EvwFPzgMEpfODLK AAAAFD/UHQJHHHwO/gwsCUtt2a3J2cSD']
+        record6 = ['+482000',
+                 '+483000',
+                 'sip.freeconet.pl',
+                 'freeconet',
+                 datetime.datetime(2009, 2, 11, 19, 31, 48, 590016),
+                 'AAAAFBDrSnKnSB1d2QebQxZVovBWBBFH AAAAFA+RyxfmsjYJl9E7XTMORyuKcHw6']
+
+
+
         self.record1 = record1
         self.record2 = record2
         self.record3 = record3
         self.record4 = record4
         self.record5 = record5
+        self.record6 = record6
         self.data = data
 
 
@@ -271,6 +281,24 @@ class NumbexDBMergeTest4(NumbexDBMergeTestBase):
         self.repo2.reload()
         self.assertEqual(self.repo2.get_range('+485000'), self.record3)
         self.assertEqual(self.repo2.get_range('+481250'), r)
+        self.repo2.fix_overlaps()
+        self.repo2.sync()
+        self.assertRaises(KeyError, self.repo2.get_range, '+481000')
+        self.assertRaises(KeyError, self.repo2.get_range, '+482000')
+
+class NumbexDBMergeTest5(NumbexDBMergeTestBase):
+    def test_merge(self):
+        # make a situation like this
+        # self:   111 333
+        # remote: 2222222
+        # where 111 is the oldest record and 333 is the newest
+        self.repo1.import_data([self.record6], delete=['+482500'])
+        self.repo1.sync()
+        self.repo2.import_data([self.record4], delete=['+482500'])
+        self.repo2.sync()
+        self.repo2.fetch_from_remote('repo1')
+        self.repo2.merge('repo1/'+self.repo1.repobranch)
+        self.repo2.reload()
         self.repo2.fix_overlaps()
         self.repo2.sync()
         self.assertRaises(KeyError, self.repo2.get_range, '+481000')

@@ -92,7 +92,9 @@ class NumbexDaemon(object):
                 if p not in peers:
                     return False, "%s is an unknown peer"%p
         try:
+            self.log.info("acquiring lock")
             self.gitlock.acquire()
+            self.log.info("lock acquired")
             self.git.reload()
             for p in requested:
                 self.log.info("fetching from %s...", p)
@@ -108,6 +110,7 @@ class NumbexDaemon(object):
                 self.log.info("fetch and merge complete in %.3fs", end-start)
             return True, ""
         finally:
+            self.log.info("lock released")
             self.gitlock.release()
             
 
@@ -259,9 +262,12 @@ class NumbexDaemon(object):
 
     def export_to_p2p(self, force_all=False):
         if not force_all and not self.db.has_changed_data():
+            self.log.info("nothing to export")
             return True
         try:
+            self.log.info("acquiring lock")
             self.gitlock.acquire()
+            self.log.info("lock acquired")
             self.git.reload()
             if self.git:
                 hours = self.cfg.getint('DATABASE', 'export_timeout')
@@ -281,6 +287,7 @@ class NumbexDaemon(object):
             self.log.exception("export_to_p2p")
             raise
         finally:
+            self.log.info("lock released")
             self.gitlock.release()
         if r:
             self.log.info("import complete, time %.3f", end-start)

@@ -170,6 +170,80 @@ Signature: $sig''')
             shelf = self.shelf
             for y in records:
                 if y != m:
+                    self.log.info("fix_overlaps: deleting %s %s",
+                            y[0], y[1])
+                    del shelf[self.make_repo_path(y[0])]
+                    fixed.add(y[0])
+            fixed.add(r)
+
+    def check_overlaps2(self, other):
+        '''checks for overlapping ranges in self and other repos
+
+        other: NumbexRepo'''
+        data = self.export_data_all()
+        otherdata = other.export_data_all()
+
+        print self.repodir
+        print other.repodir
+        it = iter(data)
+        first = it.next()
+        ivaltree = quicksect.IntervalNode(
+                quicksect.Feature(int(first[0]), int(first[1]), 1))
+        for e in it:
+            ivaltree = ivaltree.insert(quicksect.Feature(
+                    int(e[0]), int(e[1]), 1))
+        for e in otherdata:
+            ivaltree = ivaltree.insert(quicksect.Feature(
+                    int(e[0]), int(e[1]), -1))
+        bad = {}
+        def findovls(data, strand):
+            for e in data:
+                overlaps = [x for x in ivaltree.find(int(e[0]), int(e[1]))
+                        if x.strand == strand]
+                print e[0], e[1], overlaps
+                if overlaps:
+                    greater, less = False, False
+                    for o in overlaps:
+                        if o.strand == strand:
+                            continue
+                        orec = self.get_range('+%s'%o.start)
+                        if e[4] < orec[4]:
+                            less = True
+                        elif e[4] > orec[4]:
+                            greater = True
+                    if less and greater:
+                        raise NumbexDBError("inconsistent data in the repository,"
+                            " %s %s (%s) has both younger and older overlapping ranges"%(e[0], e[1], strand))
+                    bad[e[0]] = overlaps
+                    self.log.info("overlap detected: %s %s (%s) overlaps with %s",
+                        e[0], e[1], strand,
+                        ', '.join('+%s +%s (%s)'%(x.start, x.stop, x.strand)
+                                for x in overlaps if x.start != int(e[0])))
+        findovls(data, 1)
+        findovls(otherdata, -1)
+        return bad
+
+    def fix_overlaps2(self, overlaps, other):
+        '''fixes overlaps that have been computed before merge'''
+        fixed = set()
+        for r in overlaps:
+            if r.start in fixed:
+                continue
+            ovl = overlaps[rkey]
+            # find the most recent record from the overlapping set
+            # and delete the rest
+            records = [x for x in ovl
+                    if '+%s'%x.start not in fixed]
+            fromself = [self.get_range('+%s'%x.start) for x in records
+                    if x.strand == 1]
+            fromother = [self.get_range('+%s'%x.start) for x in records
+                    if x.strand == -1]
+            m = max(records, key=operator.itemgetter(4))
+            shelf = self.shelf
+            for y in records:
+                if y != m:
+                    self.log.info("fix_overlaps: deleting %s %s",
+                            y[0], y[1])
                     del shelf[self.make_repo_path(y[0])]
                     fixed.add(y[0])
             fixed.add(r)
@@ -241,6 +315,21 @@ Signature: $sig''')
             gitshelve.git('checkout', '-b', self.repobranch,
                     'origin/'+self.repobranch, repository=tmprepo,
                     worktree=tmpdir)
+
+            # check if there aren't any overlaps before the merge
+            self.log.info("checking for overlaps")
+            db2 = NumbexRepo(self.repodir, self.get_pubkeys, integration)
+            ovlself = self.check_overlaps()
+            if ovlself:
+                raise NumbexDBError("repository has overlapping ranges: %s"%ovlself)
+            ovlother = db2.check_overlaps()
+            if ovlother:
+                raise NumbexDBError("remote %s has overlapping ranges: %s"%(to_merge, ovlother))
+
+            # find overlaps to delete later
+            overlaps = self.check_overlaps2(db2)
+            
+
             cwd = os.getcwd()
             # GIT_WORK_TREE doesn't work with git merge (bug in git?)
             os.chdir(tmpdir)
@@ -278,6 +367,9 @@ Signature: $sig''')
                 raise
             finally:
                 os.chdir(cwd)
+            self.reload()
+            self.fix_overlaps2(overlaps, db2)
+            self.sync()
             # push the results
             if not dont_push:
                 gitshelve.git('push', 'origin', self.repobranch,
