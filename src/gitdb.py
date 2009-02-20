@@ -7,8 +7,10 @@ from string import Template
 import subprocess
 import signal
 import time
+import operator
 
 import gitshelve
+import quicksect
 
 import crypto
 import utils
@@ -34,10 +36,16 @@ class NumbexRepo(object):
         '''transform a string like this:
 
 >>> x.make_repo_path('1234567')
-'123/456/7' '''
+'123/456/7'
+>>> x.make_repo_path('123456')
+'123/456/this'
+'''
         if len(number)%3 != 0:
             number += ' '*(3 - (len(number)%3))
-        return '/'.join(''.join(x) for x in zip(*[iter(number)]*3)).strip()
+            append = ''
+        else:
+            append = '/this'
+        return '/'.join(''.join(x) for x in zip(*[iter(number)]*3)).strip() + append
 
     def make_record(self, rangestart, rangeend, sip, owner, mdate, sig):
         if isinstance(mdate, datetime.datetime):
@@ -68,7 +76,7 @@ Signature: $sig''')
         except KeyError:
             raise NumbexDBError('key not found: '+x)
 
-    def import_data(self, data):
+    def import_data(self, data, delete=None):
         '''data format: iterator of records in format produced by parse_record'''
         self.log.info('importing %s records...', len(data))
         tstart = time.time()
@@ -93,6 +101,10 @@ Signature: $sig''')
                 return False
 
         shelf = self.shelf
+        if delete is not None:
+            for k in delete:
+                path = self.make_repo_path(k)
+                del shelf[path]
         for r in data:
             start, end, sip, owner, mdate, rsasig = r
             num = self.make_repo_path(start)
@@ -122,6 +134,46 @@ Signature: $sig''')
             ret.append(self.parse_record(self.shelf[k]))
         ret.sort(key=lambda x: int(x[0]))
         return ret
+
+    def check_overlaps(self):
+        data = self.export_data_all()
+        it = iter(data)
+        first = it.next()
+        ivaltree = quicksect.IntervalNode(
+                quicksect.Feature(int(first[0]), int(first[1])))
+        for e in it:
+            ivaltree = ivaltree.insert(quicksect.Feature(
+                    int(e[0]), int(e[1])))
+        bad = {}
+        for e in data:
+            overlaps = ivaltree.find(int(e[0]), int(e[1]))
+            if len(overlaps) > 1:
+                bad[e[0]] = ['+'+str(x.start) for x in overlaps]
+                self.log.info("overlap detected: %s %s overlaps with %s",
+                    e[0], e[1],
+                    ', '.join('+%s +%s'%(x.start, x.stop)
+                            for x in overlaps if x.start != int(e[0])))
+        return bad
+
+    def fix_overlaps(self, overlaps=None):
+        fixed = set()
+        if overlaps is None:
+            overlaps = self.check_overlaps()
+        for r in overlaps:
+            if r in fixed:
+                continue
+            ovl = overlaps[r]
+            # find the most recent record from the overlapping set
+            # and delete the rest
+            records = [self.get_range(x) for x in ovl if x not in fixed]
+            m = max(records, key=operator.itemgetter(4))
+            shelf = self.shelf
+            for y in records:
+                if y != m:
+                    del shelf[self.make_repo_path(y[0])]
+                    fixed.add(y[0])
+            fixed.add(r)
+
 
     def export_data_since(self, since):
         if not isinstance(since, datetime.datetime):
@@ -330,7 +382,7 @@ Signature: $sig''')
             if self.daemon.poll() is None:
                 self.log.info("killing daemon")
                 os.kill(self.daemon.pid, signal.SIGKILL)
-                self.daemon = None
+            self.daemon = None
 
     def dispose(self):
         self.sync()

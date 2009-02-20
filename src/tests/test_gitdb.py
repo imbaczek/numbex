@@ -3,6 +3,7 @@ import unittest
 import datetime
 import os
 import time
+import logging
 
 from gitshelve import GitError
 
@@ -16,13 +17,13 @@ class NumbexDBPrimitiveTest(unittest.TestCase):
 
     def testMakePath(self):
         f = self.repo.make_repo_path
-        self.assertEqual(f(''), '')
+        self.assertEqual(f(''), '/this')
         self.assertEqual(f('a'), 'a')
         self.assertEqual(f('aa'), 'aa')
-        self.assertEqual(f('aaa'), 'aaa')
+        self.assertEqual(f('aaa'), 'aaa/this')
         self.assertEqual(f('aaaa'), 'aaa/a')
         self.assertEqual(f('aaaaa'), 'aaa/aa')
-        self.assertEqual(f('aaaaaa'), 'aaa/aaa')
+        self.assertEqual(f('aaaaaa'), 'aaa/aaa/this')
         self.assertEqual(f('aaaaaaa'), 'aaa/aaa/a')
         d = '48588887755'
         a = '485/888/877/55'
@@ -113,9 +114,23 @@ class RepoDataMixin(object):
                  'freeconet',
                  datetime.datetime(2009, 2, 11, 0, 15, 17, 457868),
                  'AAAAFQCWbSY9RGhJrFMroQnJhPtozMz2gA== AAAAFQCrULccnUwPwmQiIiv10oC26OdOKw==']
+        record4 = ['+481000',
+                '+485678',
+                'sip.freeconet.pl',
+                'freeconet',
+                datetime.datetime(2009, 2, 12, 12, 00, 00, 20406),
+                'AAAAFQCDaqtzhSvtTsqPEmjFdMBguNAxGw== AAAAFHqQvJlbHdp8aUScDZHUFlILeCQo']
+        record5 = ['+481000',
+                '+481500',
+                 'sip.freeconet.pl',
+                 'freeconet',
+                 datetime.datetime(2009, 2, 10, 16, 51, 20, 999999),
+                 'AAAAFD1tMMcsGbtf+EvwFPzgMEpfODLK AAAAFD/UHQJHHHwO/gwsCUtt2a3J2cSD']
         self.record1 = record1
         self.record2 = record2
         self.record3 = record3
+        self.record4 = record4
+        self.record5 = record5
         self.data = data
 
 
@@ -176,6 +191,7 @@ class NumbexDBMergeTestBase(unittest.TestCase, RepoDataMixin):
 
         self.repo1.import_data(self.data)
         self.repo1.sync()
+        self.repo1.add_remote('repo2', self.repo2.repodir)
         self.repo2.add_remote('repo1', self.repo1.repodir)
         self.repo2.fetch_from_remote('repo1')
         self.repo2.shelf.git('branch', self.repo1.repobranch, 'repo1/'+self.repo1.repobranch)
@@ -238,6 +254,57 @@ class NumbexDBMergeTest3(NumbexDBMergeTestBase):
         self.assertEqual(self.repo2.get_range('+482500'), self.data[1])
         self.assertEqual(self.repo2.get_range('+484000'), self.record1)
 
+class NumbexDBMergeTest4(NumbexDBMergeTestBase):
+    def test_merge(self):
+        r = ['+481250',
+            '+482250',
+            'new.freeconet.pl',
+            'freeconet',
+            datetime.datetime(2009, 2, 12, 15, 00, 00, ),
+            'AAAAFGJKpLrYGdiZnB2W8zf70SbLLC8/ AAAAFQCD1ev1NX3IfCXgWICcGW76/KX6XA==']
+        self.repo1.import_data([r], delete=['+481000'])
+        self.repo1.sync()
+        self.repo2.import_data([self.record5, self.record3])
+        self.repo2.sync()
+        self.repo2.fetch_from_remote('repo1')
+        self.repo2.merge('repo1/'+self.repo1.repobranch)
+        self.repo2.reload()
+        self.assertEqual(self.repo2.get_range('+485000'), self.record3)
+        self.assertEqual(self.repo2.get_range('+481250'), r)
+        self.repo2.fix_overlaps()
+        self.repo2.sync()
+        self.assertRaises(KeyError, self.repo2.get_range, '+481000')
+        self.assertRaises(KeyError, self.repo2.get_range, '+482000')
+
+    def tearDown(self):
+        pass
+
+
+class NumbexDBRevertTest(NumbexDBMergeTestBase):
+    def test_merge(self):
+        self.repo1.import_data([self.record1])
+        self.repo1.sync()
+        self.repo2.import_data([self.record2, self.record3])
+        self.repo2.sync()
+        self.repo2.fetch_from_remote('repo1')
+        self.repo2.merge('repo1/'+self.repo1.repobranch)
+        self.repo2.reload()
+        self.repo2.sync()
+        self.assertEqual(self.repo2.get_range('+484000'), self.record2)
+        self.assertEqual(self.repo2.get_range('+485000'), self.record3)
+        self.assertEqual(self.repo2.get_range('+481000'), self.data[0])
+        delete = ['+481000', '+484000', '+485000']
+        self.assert_(self.repo2.import_data([self.record4], delete))
+        expected = [self.record4]
+        self.assertEqual(self.repo2.export_data_all(), expected)
+        self.repo1.fetch_from_remote('repo2')
+        self.repo1.merge('repo2/'+self.repo2.repobranch)
+        self.repo1.reload()
+        self.repo1.sync()
+        self.assertEqual(self.repo1.export_data_all(), expected)
+
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
     unittest.main()
+

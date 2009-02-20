@@ -1,3 +1,5 @@
+from __future__ import with_statement
+
 import sqlite3
 import os.path
 import logging
@@ -15,21 +17,34 @@ class Database(object):
         else:
             self.log = logger
 
+        self.conn = None
         self.log.info('starting database with file %s', filename)
 
         self.filename = filename
         if filename != ':memory:' and not os.path.isfile(filename):
-            self.conn = sqlite3.connect(filename,
-                    detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
+            self.connect(filename)
             self.create_db()
             if fill_example is None:
                 fill_example = True
         else:
-            self.conn = sqlite3.connect(filename,
-                    detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
+            self.connect(filename)
 
         if fill_example:
             self._populate_example()
+
+    def connect(self, filename=None):
+        if filename is None:
+            filename = self.filename
+        self.conn = sqlite3.connect(filename,
+                detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
+
+    def close(self):
+        if self.conn is not None:
+            self.conn.close()
+            self.conn = None
+
+    def commit(self):
+        self.conn.commit()
 
     def create_db(self):
         self.log.info('creating database tables.')
@@ -65,8 +80,8 @@ class Database(object):
             end text,
             type char(1))''')
 
-        self.conn.commit()
         c.close()
+        self.conn.commit()
 
     def drop_db(self):
         self.log.info('dropping database tables.')
@@ -247,19 +262,29 @@ W7d77Yq4f2BRkGFp/2Jz
         c.close()
         return r
 
+    def get_deleted_data(self):
+        q = '''select start, end from numbex_range_changes
+               where type = 'D' order by start '''
+        c = self.conn.cursor()
+        c.execute(q)
+        r = list(c)
+        c.close()
+        return r
+
     def has_changed_data(self):
         q = '''select count(*)>0 from numbex_range_changes'''
         c = self.conn.cursor()
         c.execute(q)
-        r = list(c)[0]
+        r = list(c)[0][0]
         c.close()
-        return c
+        return r
 
     def clear_changed_data(self):
         q = '''delete from numbex_range_changes'''
         c = self.conn.cursor()
         c.execute(q)
         c.close()
+        self.conn.commit()
 
     def update_data(self, data):
         self.log.info("update data - %s rows", len(data))
@@ -267,28 +292,42 @@ W7d77Yq4f2BRkGFp/2Jz
         # check for overlaps
         data.sort(key=lambda x: int(x[0]))
         prevs, preve = 0, 0
+        cursor = self.conn.cursor()
         for row in data:
             s, e = int(row[0]), int(row[1])
             if prevs <= s and preve >= s:
-                self.log.info("update data - invalid data %s %s, %s %s",
+                self.log.error("update data - invalid data %s %s, %s %s",
                         prevs, preve, s, e)
                 return False
+            # check owners
+            overlaps = self.overlapping_ranges(s, e)
+            for ovl in overlaps:
+                old = self._get_range(cursor, ovl[0])
+                if old[3] != row[3]:
+                    self.log.error("update data - %s %s overlaps with %s %s" \
+                            " which has a different owner (%s vs %s)",
+                            s, e, ovl[0], ovl[1], row[3], old[3])
+                    return False
             prevs, preve = s, e
-        cursor = self.conn.cursor()
         num2str = self._numeric2string
         now = datetime.now()
         for row in data:
             ns, ne = int(row[0]), int(row[1])
             self.log.info('processing [%s]', ', '.join(map(str, row)))
-            do_insert = True
+            # empty sip address means "delete this range"
+            do_insert = (row[2] != "")
             overlaps = self.overlapping_ranges(int(row[0]), int(row[1]))
             for ovl in overlaps:
                 os, oe = int(ovl[0]), int(ovl[1])
                 # special case: new == old; update DSA signature
                 # set signature to '' otherwise
                 if os == ns and oe == ne:
-                    old = self._get_range(cursor, ovl[0])
-                    if old == row:
+                    old = list(self._get_range(cursor, ovl[0]))
+                    if not do_insert:
+                        self.log.info('deleting %s %s', ovl[0], ovl[1])
+                        self.delete_range(cursor, ovl[0])
+                        self._add_change(cursor, ovl[0], ovl[1], 'D')
+                    elif old == row:
                         self.log.info('nothing to do for %s %s', ovl[0], ovl[1])
                     elif old[:-1] == row[:-1]:
                         self.log.info('full equal, update sig %s %s',
@@ -304,7 +343,8 @@ W7d77Yq4f2BRkGFp/2Jz
                 elif os >= ns and os <= ne and oe > ne: # left overlap
                     self.log.info('left ovl %s %s',ovl[0],ovl[1])
                     self.set_range_small(cursor, ovl[0], num2str(ne+1), ovl[1], now)
-                    self._add_change(cursor, ovl[0], ovl[1], 'M')
+                    self._add_change(cursor, ovl[0], ovl[1], 'D')
+                    self._add_change(cursor, num2str(ne+1), ovl[1], 'A')
                 elif oe >= ns and oe <= ne and os < ns: # right overlap
                     self.log.info('right ovl %s %s',ovl[0],ovl[1])
                     self.set_range_small(cursor, ovl[0], ovl[0], num2str(ns-1), now)
@@ -325,8 +365,8 @@ W7d77Yq4f2BRkGFp/2Jz
                 row = list(row)
                 self.insert_range(cursor, safe=True, *row)
                 self._add_change(cursor, row[0], row[1], 'A')
-        self.conn.commit()
         cursor.close()
+        self.conn.commit()
         endtime = time.clock()
         self.log.info("update data complete, %.3f s", endtime-starttime)
         return True
@@ -439,3 +479,31 @@ W7d77Yq4f2BRkGFp/2Jz
         r = list(c)[0][0]
         c.close()
         return r
+
+    
+    def get_public_keys_ids(self, owner):
+        q = 'select id, pubkey from numbex_pubkeys where owner = ?'
+        c = self.conn.cursor()
+        c.execute(q, [owner])
+        r = list(c)
+        c.close()
+        return r
+
+    def remove_public_key(self, keyid):
+        q = 'delete from numbex_pubkeys where id = ?'
+        c = self.conn.cursor()
+        c.execute(q, [keyid])
+        r = list(c)
+        c.close()
+        self.conn.commit()
+        return r
+
+    def add_public_key(self, owner, pubkey):
+        q = '''insert into numbex_pubkeys (owner, pubkey)
+               values (?, ?)'''
+        c = self.conn.cursor()
+        c.execute(q, [owner, pubkey])
+        c.close()
+        self.conn.commit()
+
+

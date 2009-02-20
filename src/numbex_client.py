@@ -102,6 +102,55 @@ def send_sign(csvfile, keyfile, url=None):
         logging.error("send: receiveUpdates() failed, check input data")
         sys.exit(1)
 
+
+def get_public_keys(owner, url=None):
+    if url is None:
+        url = _url
+
+    loc = NumbexServiceServiceLocator()
+    port = loc.getNumbexServicePort(url=url, tracefile=_tracefile)
+
+    msg = getPublicKeys()
+    msg._parameter = owner
+    rsp = port.getPublicKeys(msg)
+    return rsp._return
+
+
+def remove_public_key(keyid, url=None):
+    if url is None:
+        url = _url
+
+    loc = NumbexServiceServiceLocator()
+    port = loc.getNumbexServicePort(url=url, tracefile=_tracefile)
+
+    msg = removePublicKey()
+    msg._parameter = keyid
+    rsp = port.removePublicKey(msg)
+
+
+def send_public_key(owner, keyfile, url=None):
+    if url is None:
+        url = _url
+
+    f = file(keyfile)
+    pubkey = f.read()
+    f.close()
+    dsa = crypto.parse_pub_key(pubkey)
+    if not dsa.check_key():
+        _tracefile.write('invalid key')
+        return
+
+    loc = NumbexServiceServiceLocator()
+    port = loc.getNumbexServicePort(url=url, tracefile=_tracefile)
+
+    msg = receivePublicKey()
+    msg._owner = owner
+    msg._pubkey = pubkey
+    rsp = port.receivePublicKey(msg)
+    if not rsp._return:
+        _tracefile.write('key insertion failed')
+
+
 def main():
     global _tracefile, _outfile, _url
     usage = """%prog [options] <command>\n
@@ -112,7 +161,13 @@ Available commands:
     sendsign <CSVFILE> <KEYFILE>
                      \tsend the contents of CSVFILE as an update, sign them
                      \twith KEYFILE (PEM private key)
-    send <CSVFILE>   \tsend the contents of CSVFILE as an update"""
+    send <CSVFILE>   \tsend the contents of CSVFILE as an update
+    getpubkeys <OWNER>\tget public keys of OWNER
+    sendpubkey <OWNER> <KEYFILE>
+                     \tattach public key KEYFILE to an OWNER
+    rmpubkey <KEYID> \tdelete public key with id = KEYID
+                     \t(check ids with getpubkeys)
+    """
     op = OptionParser(usage=usage)
     op.add_option("-o", "--output-file", help="output file",
             metavar="OUTFILE")
@@ -132,7 +187,11 @@ Available commands:
                 'pull': pull,
                 'pullsign': pull_sign,
                 'send': send,
-                'sendsign': send_sign}
+                'sendsign': send_sign,
+                'getpubkeys': get_public_keys,
+                'rmpubkey': remove_public_key,
+                'sendpubkey': send_public_key,
+                }
     try:
         r=dispatch.get(args[0], lambda: op.error("unknown command"))(*args[1:])
         if r is not None:

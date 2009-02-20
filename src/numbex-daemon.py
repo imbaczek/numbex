@@ -19,6 +19,9 @@ from SimpleXMLRPCServer import SimpleXMLRPCServer, SimpleXMLRPCDispatcher, \
         SimpleXMLRPCRequestHandler, Fault
 from Queue import Queue
 
+from ZSI.ServiceContainer import AsServer
+
+from numbex_server import MyNumbexService
 from tracker_client import NumbexPeer
 from gitdb import NumbexRepo
 from database import Database
@@ -42,8 +45,11 @@ class NumbexDaemon(object):
         self.p2p_running = False
         self.log = logging.getLogger("daemon")
         self.updater_running = False
+        self.updater_sched_stopped = True
+        self.updater_worker_stopped = True
         self.updater_reqs = Queue(20)
         self.last_update = 0
+        self.gitlock = threading.Lock()
 
     def reload_config(self, configname):
         newcfg = read_config(confname)
@@ -85,17 +91,25 @@ class NumbexDaemon(object):
             for p in requested:
                 if p not in peers:
                     return False, "%s is an unknown peer"%p
-        for p in requested:
-            self.log.info("fetching from %s...", p)
-            start = time.time()
-            remote = re.sub(r'[^a-zA-Z0-9_-]', '', 'remote_%s' % p)
-            git.add_remote(remote, p, force=True)
-            git.fetch_from_remote(remote)
-            git.merge('%s/%s'%(remote, 'numbex'))
-            git.reload()
-            end = time.time()
-            self.log.info("fetch and merge complete in %.3fs", end-start)
-        return True, ""
+        try:
+            self.gitlock.acquire()
+            self.git.reload()
+            for p in requested:
+                self.log.info("fetching from %s...", p)
+                start = time.time()
+                remote = re.sub(r'[^a-zA-Z0-9_-]', '', 'remote_%s' % p)
+                git.add_remote(remote, p, force=True)
+                git.fetch_from_remote(remote)
+                git.merge('%s/%s'%(remote, 'numbex'))
+                git.reload()
+                git.fix_overlaps()
+                git.sync()
+                end = time.time()
+                self.log.info("fetch and merge complete in %.3fs", end-start)
+            return True, ""
+        finally:
+            self.gitlock.release()
+            
 
     def _updater_thread(self):
         self.log.info("starting update processor")
@@ -104,34 +118,61 @@ class NumbexDaemon(object):
         db = Database(os.path.expanduser(self.cfg.get('DATABASE', 'path')))
         git = NumbexRepo(os.path.expanduser(self.cfg.get('GIT', 'path')),
                 db.get_public_keys)
+        self.updater_worker_stopped = False
         while self.updater_running:
             requested = self.updater_reqs.get()
             if not self.updater_running:
                 break
+            if [None] == requested:
+                continue
             try:
                 r, msg = self._p2p_get_updates(requested, git=git)
                 if not r:
                     self.log.warn("p2p_get_updates: %s", msg)
-                self._import_from_p2p(db=db)
+                if not self.updater_running:
+                    break
+                try:
+                    self.log.info("acquiring lock")
+                    self.gitlock.acquire()       
+                    self.log.info("lock acquired")
+                    if not self._import_from_p2p(db=db):
+                        self.log.warn("stopping p2p and updater threads, please resolve the problems with e.g. forced p2p-export")
+                        self.updater_stop()
+                        self.p2p_stop()
+                        break
+                finally:
+                    self.log.info("lock released")
+                    self.gitlock.release()
                 self.last_update = time.time()
             except:
                 self.log.exception("error in p2p_get_updates")
+        self.updater_worker_stopped = True
+        self.log.info("update processor stopped")
 
     def _updater_scheduler_thread(self):
         ival = self.cfg.getint('PEER', 'fetch_interval') 
         self.log.info("starting update scheduler, interval %s", ival)
+        self.updater_sched_stopped = False
         while self.updater_running:
             ival = self.cfg.getint('PEER', 'fetch_interval') 
             time.sleep(ival)
             if not self.updater_running:
                 break
             self.updater_reqs.put(None)
+        self.updater_sched_stopped = True
+        self.updater_reqs.put([None])
+        self.log.info("update scheduler stopped")
+
 
     def updater_start(self):
         if self.updater_running:
             return False
+        if not self.updater_sched_stopped or not self.updater_worker_stopped:
+            self.log.info("updater threads not stopped yet")
+            return False
         if self.cfg.getint('PEER', 'fetch_interval') <= 0:
-            self.log.warn("updater disabled due to intveral=%s", )
+            self.log.warn("updater disabled due to intveral=%s",
+                    self.cfg.getint('PEER', 'fetch_interval'))
             return False
         self.updater_running = True
         t = threading.Thread(target=self._updater_scheduler_thread)
@@ -148,6 +189,7 @@ class NumbexDaemon(object):
         return True
 
     def p2p_stop(self):
+        self.git.stop_daemon()
         if self.p2p_running:
             self.log.info("stopping p2p")
         # even if flag not set, cleaning up can't hurt
@@ -161,6 +203,7 @@ class NumbexDaemon(object):
         if self.p2p_running:
             self.log.info("p2p already running")
             return False
+        self.git.start_daemon(self.cfg.getint('GIT', 'daemon_port'))
         self.log.info("starting p2p peers")
         user = self.cfg.get('PEER', 'user')
         auth = self.cfg.get('PEER', 'auth')
@@ -184,6 +227,7 @@ class NumbexDaemon(object):
                 self.log.info("database empty, importing all...")
             start = time.time()   
             r = db.update_data(self.git.export_data_all())
+            db.clear_changed_data()
             end = time.time()
             if r:
                 self.log.info("database import completed in %.3f", end-start)
@@ -201,6 +245,7 @@ class NumbexDaemon(object):
                 since)
         start = time.time()
         r = db.update_data(self.git.export_data_since(since))
+        db.clear_changed_data()
         end = time.time()
         if r:
             self.log.info("database import completed in %.3f", end-start)
@@ -212,23 +257,34 @@ class NumbexDaemon(object):
     def import_from_p2p(self, force_all=False):
         return self._import_from_p2p(self.db, force_all)
 
-    def export_to_p2p(self):
-        if not self.db.has_changed_data():
+    def export_to_p2p(self, force_all=False):
+        if not force_all and not self.db.has_changed_data():
             return True
-        if self.git:
-            hours = self.cfg.getint('DATABASE', 'export_timeout')
-            since = datetime.datetime.now() - datetime.timedelta(hours)
-            self.log.info("importing records since %s into git", since)
-            start = time.time()
-            r = self.git.import_data(self.db.get_data_since(since))
-            end = time.time()
-        else:
-            self.log.info("git repo empty, importing all records...")
-            start = time.time()
-            r = self.git.import_data(self.db.get_data_all())
-            end = time.time()
+        try:
+            self.gitlock.acquire()
+            self.git.reload()
+            if self.git:
+                hours = self.cfg.getint('DATABASE', 'export_timeout')
+                since = datetime.datetime.now() - datetime.timedelta(hours)
+                self.log.info("importing records since %s into git", since)
+                start = time.time()
+                delete = [x[0] for x in self.db.get_deleted_data()]
+                r = self.git.import_data(self.db.get_data_since(since),
+                        delete=delete)
+                end = time.time()
+            else:
+                self.log.info("git repo empty, importing all records...")
+                start = time.time()
+                r = self.git.import_data(self.db.get_data_all())
+                end = time.time()
+        except:
+            self.log.exception("export_to_p2p")
+            raise
+        finally:
+            self.gitlock.release()
         if r:
             self.log.info("import complete, time %.3f", end-start)
+            self.db.clear_changed_data()
         else:
             self.log.warn("import failed, time %.3f", end-start)
         return r
@@ -245,11 +301,23 @@ class NumbexDaemon(object):
             },
             'updater': {
                 'last_update': self.last_update,
+            },
+            'database': {
+                'has_changed_data': self.db.has_changed_data(),
             }
         }
 
     def shutdown(self):
         self._exit()
+
+    def _soap_start(self):
+        port = self.cfg.getint('SOAP', 'port')
+        self.log.info("starting SOAP controller on port %s...", port)
+        dbpath = os.path.expanduser(self.cfg.get('DATABASE', 'path'))
+        t = threading.Thread(target=AsServer,
+                kwargs=dict(port=port, services=[MyNumbexService(dbpath),]))
+        t.daemon = True
+        t.start()
 
     def _startup(self):
         gitpath = os.path.expanduser(self.cfg.get('GIT', 'path'))
@@ -261,10 +329,12 @@ class NumbexDaemon(object):
             self.import_from_p2p()
         elif not self.git:
             self.log.info("initial git repository empty")
-            self.export_to_p2p()
-        self.git.start_daemon(self.cfg.getint('GIT', 'daemon_port'))
+            r = self.export_to_p2p(force_all=True)
+            if not r:
+                self.log.error("import failed", msg)
         self.p2p_start()
         self.updater_start()
+        self._soap_start()
         signal.signal(signal.SIGTERM, self._exit)
 
     def _main(self):
@@ -292,7 +362,10 @@ class NumbexDaemon(object):
     def _exit(self, sig=None, frame=None):
         if sig is not None:
             self.log.info("received signal %s", sig)
-        self._stop()
+        try:
+            self._stop()
+        except:
+            self.log.exception('exception during exit ignored:')
         sys.exit(0)
 
     def _stop(self):
