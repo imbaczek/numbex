@@ -1,3 +1,5 @@
+from __future__ import with_statement
+
 import sqlite3
 import os.path
 import logging
@@ -341,7 +343,8 @@ W7d77Yq4f2BRkGFp/2Jz
                 elif os >= ns and os <= ne and oe > ne: # left overlap
                     self.log.info('left ovl %s %s',ovl[0],ovl[1])
                     self.set_range_small(cursor, ovl[0], num2str(ne+1), ovl[1], now)
-                    self._add_change(cursor, ovl[0], ovl[1], 'M')
+                    self._add_change(cursor, ovl[0], ovl[1], 'D')
+                    self._add_change(cursor, num2str(ne+1), ovl[1], 'A')
                 elif oe >= ns and oe <= ne and os < ns: # right overlap
                     self.log.info('right ovl %s %s',ovl[0],ovl[1])
                     self.set_range_small(cursor, ovl[0], ovl[0], num2str(ns-1), now)
