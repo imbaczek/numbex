@@ -126,22 +126,26 @@ class NumbexDaemon(object):
             if [None] == requested:
                 continue
             try:
-                self.gitlock.acquire()       
                 r, msg = self._p2p_get_updates(requested, git=git)
                 if not r:
                     self.log.warn("p2p_get_updates: %s", msg)
                 if not self.updater_running:
                     break
-                if not self._import_from_p2p(db=db):
-                    self.log.warn("stopping p2p and updater threads, please resolve the problems with e.g. forced p2p-export")
-                    self.updater_stop()
-                    self.p2p_stop()
-                    break
+                try:
+                    self.log.info("acquiring lock")
+                    self.gitlock.acquire()       
+                    self.log.info("lock acquired")
+                    if not self._import_from_p2p(db=db):
+                        self.log.warn("stopping p2p and updater threads, please resolve the problems with e.g. forced p2p-export")
+                        self.updater_stop()
+                        self.p2p_stop()
+                        break
+                finally:
+                    self.log.info("lock released")
+                    self.gitlock.release()
                 self.last_update = time.time()
             except:
                 self.log.exception("error in p2p_get_updates")
-            finally:
-                self.gitlock.release()
         self.updater_worker_stopped = True
         self.log.info("update processor stopped")
 
