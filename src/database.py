@@ -313,7 +313,7 @@ W7d77Yq4f2BRkGFp/2Jz
         now = datetime.now()
         for row in data:
             ns, ne = int(row[0]), int(row[1])
-            self.log.info('processing [%s]', ', '.join(map(str, row)))
+            self.log.debug('processing [%s]', ', '.join(map(str, row)))
             # empty sip address means "delete this range"
             do_insert = (row[2] != "")
             overlaps = self.overlapping_ranges(int(row[0]), int(row[1]))
@@ -324,37 +324,37 @@ W7d77Yq4f2BRkGFp/2Jz
                 if os == ns and oe == ne:
                     old = list(self._get_range(cursor, ovl[0]))
                     if not do_insert:
-                        self.log.info('deleting %s %s', ovl[0], ovl[1])
+                        self.log.debug('deleting %s %s', ovl[0], ovl[1])
                         self.delete_range(cursor, ovl[0])
                         self._add_change(cursor, ovl[0], ovl[1], 'D')
                     elif old == row:
-                        self.log.info('nothing to do for %s %s', ovl[0], ovl[1])
+                        self.log.debug('nothing to do for %s %s', ovl[0], ovl[1])
                     elif old[:-1] == row[:-1]:
-                        self.log.info('full equal, update sig %s %s',
+                        self.log.debug('full equal, update sig %s %s',
                                 ovl[0], ovl[1])
                         self.set_range_small(cursor, ovl[0], ovl[0], ovl[1],
                                 row[4], row[5])
                         self._add_change(cursor, ovl[0], ovl[1], 'M')
                     else:
-                        self.log.info('equal ovl %s %s', ovl[0], ovl[1])
+                        self.log.debug('equal ovl %s %s', ovl[0], ovl[1])
                         self.set_range(cursor, ovl[0], *row)
                         self._add_change(cursor, ovl[0], ovl[1], 'M')
                     do_insert = False
                 elif os >= ns and os <= ne and oe > ne: # left overlap
-                    self.log.info('left ovl %s %s',ovl[0],ovl[1])
+                    self.log.debug('left ovl %s %s',ovl[0],ovl[1])
                     self.set_range_small(cursor, ovl[0], num2str(ne+1), ovl[1], now)
                     self._add_change(cursor, ovl[0], ovl[1], 'D')
                     self._add_change(cursor, num2str(ne+1), ovl[1], 'A')
                 elif oe >= ns and oe <= ne and os < ns: # right overlap
-                    self.log.info('right ovl %s %s',ovl[0],ovl[1])
+                    self.log.debug('right ovl %s %s',ovl[0],ovl[1])
                     self.set_range_small(cursor, ovl[0], ovl[0], num2str(ns-1), now)
                     self._add_change(cursor, ovl[0], ovl[1], 'M')
                 elif os >= ns and oe <= ne: # complete overlap, old is smaller
-                    self.log.info('old smaller ovl %s %s',ovl[0],ovl[1])
+                    self.log.debug('old smaller ovl %s %s',ovl[0],ovl[1])
                     self.delete_range(cursor, ovl[0])
                     self._add_change(cursor, ovl[0], ovl[1], 'D')
                 elif os <= ns and oe >= ne: # complete overlap, new is smaller
-                    self.log.info('new smaller ovl %s %s',ovl[0],ovl[1])
+                    self.log.debug('new smaller ovl %s %s',ovl[0],ovl[1])
                     old = self._get_range(cursor, ovl[0])
                     self.set_range_small(cursor, ovl[0], ovl[0], num2str(ns-1), now)
                     self.insert_range(cursor, num2str(ne+1), ovl[1],
