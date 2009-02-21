@@ -118,6 +118,20 @@ Signature: $sig''')
                 if oldrec != newrec:
                     shelf[num] = newrec
         self.sync()
+        overlaps = self.check_overlaps()
+        if overlaps:
+            self.log.warning("import resulted in overlapping ranges, rolling back")
+            parents = shelf.get_parent_ids()
+            if len(parents) == 0:
+                # TODO clear it all
+                pass
+            elif len(parents) == 1:
+                shelf.update_head(parents[0])
+            else:
+                raise NumbexDBError("import commit with multiple parents?!?")
+            shelf.git("gc", "--auto")
+            self.reload()
+            return False
         tend = time.time()
         self.log.info("import successful, time %.3f", tend-tstart)
         return True
@@ -182,72 +196,100 @@ Signature: $sig''')
         other: NumbexRepo'''
         data = self.export_data_all()
         otherdata = other.export_data_all()
+        if not data or not otherdata:
+            return {}
 
-        print self.repodir
-        print other.repodir
         it = iter(data)
         first = it.next()
+        self.log.debug('1 %s %s',first[0],first[1])
         ivaltree = quicksect.IntervalNode(
                 quicksect.Feature(int(first[0]), int(first[1]), 1))
         for e in it:
+            self.log.debug('1 %s %s',e[0],e[1])
             ivaltree = ivaltree.insert(quicksect.Feature(
                     int(e[0]), int(e[1]), 1))
         for e in otherdata:
+            self.log.debug('-1 %s %s',e[0],e[1])
             ivaltree = ivaltree.insert(quicksect.Feature(
                     int(e[0]), int(e[1]), -1))
         bad = {}
-        def findovls(data, strand):
+        def findovls(datadb, db, data, strand):
+            self.log.debug("checking in strand %s", strand)
             for e in data:
-                overlaps = [x for x in ivaltree.find(int(e[0]), int(e[1]))
-                        if x.strand == strand]
-                print e[0], e[1], overlaps
+                e0int = int(e[0])
+                e1int = int(e[1])
+                overlaps = [x for x in ivaltree.find(e0int, e1int)
+                        if x.strand != strand]
+                self.log.debug("%s %s %s %s", e[0], e[1], e[4], overlaps)
+                if len(overlaps) == 1 and e0int == overlaps[0].start \
+                        and e1int == overlaps[0].stop:
+                    key = '+%s'%overlaps[0].start
+                    orec = db.get_range(key)
+                    if orec[:-1] == e[:-1]:
+                        continue
                 if overlaps:
                     greater, less = False, False
                     for o in overlaps:
-                        if o.strand == strand:
-                            continue
-                        orec = self.get_range('+%s'%o.start)
+                        key = '+%s'%o.start
+                        orec = db.get_range(key)
                         if e[4] < orec[4]:
                             less = True
                         elif e[4] > orec[4]:
                             greater = True
+                            if e0int > o.start and e1int < o.stop \
+                                    or e0int < o.start and e1int < o.stop:
+                                self.log.warn("possible loss of information due to misaligned overlap in +%s +%s and +%s +%s", e0int, e1int, o.start, o.stop)
+                    self.log.debug("%s %s %s %s", e[0], e[1], less, greater)
                     if less and greater:
                         raise NumbexDBError("inconsistent data in the repository,"
-                            " %s %s (%s) has both younger and older overlapping ranges"%(e[0], e[1], strand))
-                    bad[e[0]] = overlaps
+                            " %s %s (%s) has both younger and older overlapping ranges: %s"%(e[0], e[1], strand, ', '.join('+%s +%s'%(x.start, x.stop) for x in overlaps)))
+                    bad[(e[0],strand)] = overlaps
                     self.log.info("overlap detected: %s %s (%s) overlaps with %s",
                         e[0], e[1], strand,
                         ', '.join('+%s +%s (%s)'%(x.start, x.stop, x.strand)
-                                for x in overlaps if x.start != int(e[0])))
-        findovls(data, 1)
-        findovls(otherdata, -1)
+                                for x in overlaps))
+        findovls(self, other, data, 1)
+        findovls(other, self, otherdata, -1)
         return bad
 
     def fix_overlaps2(self, overlaps, other):
         '''fixes overlaps that have been computed before merge'''
         fixed = set()
-        for r in overlaps:
-            if r.start in fixed:
+        switch = {-1: other, 1: self}
+        for r,strand in overlaps:
+            if r in fixed:
                 continue
-            ovl = overlaps[rkey]
-            # find the most recent record from the overlapping set
-            # and delete the rest
-            records = [x for x in ovl
-                    if '+%s'%x.start not in fixed]
-            fromself = [self.get_range('+%s'%x.start) for x in records
-                    if x.strand == 1]
-            fromother = [self.get_range('+%s'%x.start) for x in records
-                    if x.strand == -1]
-            m = max(records, key=operator.itemgetter(4))
+            db = switch[strand]
+            ovl = overlaps[r,strand]
+            rint = int(r)
+            # probably merged out
+            try:
+                record = self.get_range(r)
+            except KeyError:
+                continue
+            candidates = [record]
+            winner = record
+            for o in ovl:
+                # chances are this already merged correctly
+                if o.start == rint:
+                    continue
+                rec2key = '+%s'%o.start
+                try:
+                    rec2 = self.get_range(rec2key)
+                except KeyError:
+                    # deleted in the merge, no problem
+                    continue
+                if winner[4] < rec2[4]:
+                    winner = rec2
+                candidates.append(rec2)
             shelf = self.shelf
-            for y in records:
-                if y != m:
-                    self.log.info("fix_overlaps: deleting %s %s",
-                            y[0], y[1])
-                    del shelf[self.make_repo_path(y[0])]
-                    fixed.add(y[0])
+            for x in candidates:
+                if x != winner:
+                    self.log.info("fix_overlaps2: deleting %s %s",
+                            x[0], x[1])
+                    del shelf[self.make_repo_path(x[0])]
+                    fixed.add(x[0])
             fixed.add(r)
-
 
     def export_data_since(self, since):
         if not isinstance(since, datetime.datetime):
@@ -367,9 +409,10 @@ Signature: $sig''')
                 raise
             finally:
                 os.chdir(cwd)
-            self.reload()
-            self.fix_overlaps2(overlaps, db2)
-            self.sync()
+            fixdb = NumbexRepo(tmprepo, self.get_pubkeys, self.repobranch)
+            fixdb.fix_overlaps2(overlaps, db2)
+            fixdb.sync()
+
             # push the results
             if not dont_push:
                 gitshelve.git('push', 'origin', self.repobranch,
