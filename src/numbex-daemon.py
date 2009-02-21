@@ -50,6 +50,8 @@ class NumbexDaemon(object):
         self.updater_reqs = Queue(20)
         self.last_update = 0
         self.gitlock = threading.Lock()
+        self.had_import_error = False
+        self.had_export_error = False
 
     def reload_config(self, configname):
         newcfg = read_config(confname)
@@ -92,9 +94,9 @@ class NumbexDaemon(object):
                 if p not in peers:
                     return False, "%s is an unknown peer"%p
         try:
-            self.log.info("acquiring lock")
+            self.log.debug("acquiring lock")
             self.gitlock.acquire()
-            self.log.info("lock acquired")
+            self.log.debug("lock acquired")
             self.git.reload()
             for p in requested:
                 self.log.info("fetching from %s...", p)
@@ -110,7 +112,7 @@ class NumbexDaemon(object):
                 self.log.info("fetch and merge complete in %.3fs", end-start)
             return True, ""
         finally:
-            self.log.info("lock released")
+            self.log.debug("lock released")
             self.gitlock.release()
             
 
@@ -135,16 +137,17 @@ class NumbexDaemon(object):
                 if not self.updater_running:
                     break
                 try:
-                    self.log.info("acquiring lock")
+                    self.log.debug("acquiring lock")
                     self.gitlock.acquire()       
-                    self.log.info("lock acquired")
+                    self.log.debug("lock acquired")
                     if not self._import_from_p2p(db=db):
+                        self.had_import_error = True
                         self.log.warn("stopping p2p and updater threads, please resolve the problems with e.g. forced p2p-export")
                         self.updater_stop()
                         self.p2p_stop()
                         break
                 finally:
-                    self.log.info("lock released")
+                    self.log.debug("lock released")
                     self.gitlock.release()
                 self.last_update = time.time()
             except:
@@ -265,9 +268,9 @@ class NumbexDaemon(object):
             self.log.info("nothing to export")
             return True
         try:
-            self.log.info("acquiring lock")
+            self.log.debug("acquiring lock")
             self.gitlock.acquire()
-            self.log.info("lock acquired")
+            self.log.debug("lock acquired")
             self.git.reload()
             if self.git:
                 hours = self.cfg.getint('DATABASE', 'export_timeout')
@@ -287,7 +290,7 @@ class NumbexDaemon(object):
             self.log.exception("export_to_p2p")
             raise
         finally:
-            self.log.info("lock released")
+            self.log.debug("lock released")
             self.gitlock.release()
         if r:
             self.log.info("import complete, time %.3f", end-start)
@@ -301,6 +304,7 @@ class NumbexDaemon(object):
             'flags': {
                 'p2p_running': self.p2p_running,
                 'updater_running': self.updater_running,
+                'had_import_error': self.had_import_error,
             },
             'p2p': {
                 'peers': self.p2p_get_peers(),
@@ -313,6 +317,9 @@ class NumbexDaemon(object):
                 'has_changed_data': self.db.has_changed_data(),
             }
         }
+
+    def clear_errors(self):
+        self.had_import_error = False
 
     def shutdown(self):
         self._exit()
