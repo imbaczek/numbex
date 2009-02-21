@@ -4,6 +4,12 @@ import datetime
 import database
 import gitdb
 
+def recsign(r, keyfile='freeconet.priv.pem'):
+    from M2Crypto import DSA
+    import crypto
+    dsa = DSA.load_key(keyfile)
+    return crypto.sign_record(dsa, *r)
+
 def maketmpdb():
     db = database.Database(':memory:')
     db.create_db()
