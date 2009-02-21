@@ -195,7 +195,8 @@ class NumbexDaemon(object):
         return True
 
     def p2p_stop(self):
-        self.git.stop_daemon()
+        if self.git is not None:
+            self.git.stop_daemon()
         if self.p2p_running:
             self.log.info("stopping p2p")
         # even if flag not set, cleaning up can't hurt
