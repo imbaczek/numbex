@@ -77,6 +77,10 @@ check signatures and logs\n'''%msg)
         print
         return True
 
+    def clear_errors(self, options, args):
+        self.rpc.clear_status()
+        return True
+
 
 def main():
     from optparse import OptionParser
@@ -108,6 +112,7 @@ updater-stop \tstops the updater thread
         'updater-stop': ctl.updater_stop,
         'updater-start': ctl.updater_start,
         'status':     ctl.status,
+        'clearerrors': ctrl.clear_errors,
     }
 
     if len(args) >= 1 and args[0] in dispatch:
