@@ -126,11 +126,22 @@ class RepoDataMixin(object):
                  'freeconet',
                  datetime.datetime(2009, 2, 10, 16, 51, 20, 999999),
                  'AAAAFD1tMMcsGbtf+EvwFPzgMEpfODLK AAAAFD/UHQJHHHwO/gwsCUtt2a3J2cSD']
+        record6 = ['+482000',
+                 '+483000',
+                 'sip.freeconet.pl',
+                 'freeconet',
+                 datetime.datetime(2009, 2, 13, 19, 31, 48, 590016),
+                 'AAAAFAau3ls3DXbRubC88WK9pKFJS8nd AAAAFAwDyBlcYwxGyHoyvkMzF8R/FqlL']
+
+
+
+
         self.record1 = record1
         self.record2 = record2
         self.record3 = record3
         self.record4 = record4
         self.record5 = record5
+        self.record6 = record6
         self.data = data
 
 
@@ -214,6 +225,7 @@ class NumbexDBMergeTest1(NumbexDBMergeTestBase):
         self.assertEqual(self.repo2.get_range('+484000'), self.record2)
         self.assertEqual(self.repo2.get_range('+485000'), self.record3)
         self.assertEqual(self.repo2.get_range('+481000'), self.data[0])
+        self.assertFalse(self.repo2.check_overlaps())
 
 class NumbexDBMergeTest2(NumbexDBMergeTestBase):
     def test_merge(self):
@@ -227,6 +239,7 @@ class NumbexDBMergeTest2(NumbexDBMergeTestBase):
         self.assertEqual(self.repo2.get_range('+484000'), self.record2)
         self.assertEqual(self.repo2.get_range('+485000'), self.record3)
         self.assertEqual(self.repo2.get_range('+481000'), self.data[0])
+        self.assertFalse(self.repo2.check_overlaps())
 
 class NumbexDBMergeTestEmpty(NumbexDBMergeTestBase):
     def test_merge(self):
@@ -235,6 +248,7 @@ class NumbexDBMergeTestEmpty(NumbexDBMergeTestBase):
         self.repo2.reload()
         self.assertEqual(self.repo2.get_range('+481000'), self.data[0])
         self.assertEqual(self.repo2.get_range('+482500'), self.data[1])
+        self.assertFalse(self.repo2.check_overlaps())
 
 class NumbexDBMergeTest3(NumbexDBMergeTestBase):
     def setUpData(self):
@@ -253,6 +267,7 @@ class NumbexDBMergeTest3(NumbexDBMergeTestBase):
         self.assertEqual(self.repo2.get_range('+481000'), self.data[0])
         self.assertEqual(self.repo2.get_range('+482500'), self.data[1])
         self.assertEqual(self.repo2.get_range('+484000'), self.record1)
+        self.assertFalse(self.repo2.check_overlaps())
 
 class NumbexDBMergeTest4(NumbexDBMergeTestBase):
     def test_merge(self):
@@ -271,13 +286,58 @@ class NumbexDBMergeTest4(NumbexDBMergeTestBase):
         self.repo2.reload()
         self.assertEqual(self.repo2.get_range('+485000'), self.record3)
         self.assertEqual(self.repo2.get_range('+481250'), r)
-        self.repo2.fix_overlaps()
-        self.repo2.sync()
         self.assertRaises(KeyError, self.repo2.get_range, '+481000')
         self.assertRaises(KeyError, self.repo2.get_range, '+482000')
+        self.assertFalse(self.repo2.check_overlaps())
 
-    def tearDown(self):
-        pass
+class NumbexDBMergeTestInconsistent(NumbexDBMergeTestBase):
+    def test_merge_inconsistent(self):
+        # make a situation like this
+        # self:   111 333
+        # remote: 2222222
+        # where 111 is the oldest record and 333 is the newest
+        self.assertEqual(self.repo1.get_range('+481000'), self.data[0])
+        self.assert_(self.repo1.import_data([self.record6], delete=['+482500']))
+        self.repo1.sync()
+        self.assertEqual(self.repo1.get_range('+481000'), self.data[0])
+        self.assertEqual(self.repo1.get_range('+482000'), self.record6)
+        self.assert_(self.repo2.import_data([self.record4], delete=['+482500']))
+        self.repo2.sync()
+        self.repo2.fetch_from_remote('repo1')
+        self.assertRaises(gitdb.NumbexDBError,
+                self.repo2.merge, 'repo1/'+self.repo1.repobranch)
+
+class NumbexDBMergeTestFixup(NumbexDBMergeTestBase):
+    def test_merge(self):
+        # self:   111 222
+        # remote: 3333333     result => 3333333
+        r1 = ['+48100000',
+              '+48100099',
+              'sip.freeconet.pl',
+              'freeconet',
+              datetime.datetime(2009, 2, 9, 11, 0),
+              'AAAAFGgYIQjyImbwnuMNX42U4NbgfmHZ AAAAFES+AFj7QgWpv/wz8NC7BGfahWPU']
+        r2 = ['+48100100',
+              '+48100199',
+              'new.freeconet.pl',
+              'freeconet',
+              datetime.datetime(2009, 2, 10, 11, 0),
+              'AAAAFEd3kvSFSDSWRtDPirvdDlO894ta AAAAFAz3sbHl0yzPrsgEackyZ5mkALNu']
+        r3 = ['+48100000',
+              '+48100299',
+              'sip.freeconet.pl',
+              'freeconet',
+              datetime.datetime(2009, 2, 11, 11, 0),
+              'AAAAFQCI0SZoDnaVDYPtmMgFEr2wrzkOFQ== AAAAFEQyWX/+Bolov/VFaHWweRUnJbYp']
+
+        self.repo1.import_data([r1, r2])
+        self.repo1.sync()
+        self.repo2.import_data([r3])
+        self.repo2.sync()
+        self.repo2.fetch_from_remote('repo1')
+        self.repo2.merge('repo1/'+self.repo1.repobranch)
+        self.repo2.reload()
+        self.assertFalse(self.repo2.check_overlaps())
 
 
 class NumbexDBRevertTest(NumbexDBMergeTestBase):
@@ -294,6 +354,8 @@ class NumbexDBRevertTest(NumbexDBMergeTestBase):
         self.assertEqual(self.repo2.get_range('+485000'), self.record3)
         self.assertEqual(self.repo2.get_range('+481000'), self.data[0])
         delete = ['+481000', '+484000', '+485000']
+        self.assertFalse(self.repo2.import_data([self.record4], delete))
+        delete += ['+482500']
         self.assert_(self.repo2.import_data([self.record4], delete))
         expected = [self.record4]
         self.assertEqual(self.repo2.export_data_all(), expected)

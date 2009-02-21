@@ -1,8 +1,16 @@
 import os
 import datetime
+import csv
 
 import database
 import gitdb
+import crypto
+
+def recsign(r, keyfile='freeconet.priv.pem'):
+    from M2Crypto import DSA
+    import crypto
+    dsa = DSA.load_key(keyfile)
+    return crypto.sign_record(dsa, *r)
 
 def maketmpdb():
     db = database.Database(':memory:')
@@ -13,6 +21,43 @@ def maketmpdb():
 def maketmprepo(name, keygetter):
     repo = gitdb.NumbexRepo('/tmp/%s'%name, keygetter)
     return repo
+
+
+def generatedata(n, owner="freeconet", keyfile="freeconet.priv.pem"):
+    start = 48600000000
+    end   = 48699999999
+    thissip = 'sip.freeconet.pl'
+    prevsip = 'new.freeconet.pl'
+    thisdate = datetime.datetime(2009, 2, 14, 12).isoformat()
+    prevdate = datetime.datetime(2009, 2, 15, 9).isoformat()
+    from random import randrange
+    # no duplicates
+    points = list(set(randrange(start, end) for i in xrange(n)))
+    points.sort()
+    first = ['+%s'%start,
+            '+%s'%points[0],
+            thissip,
+            owner,
+            thisdate]
+    from M2Crypto import DSA
+    dsa = DSA.load_key(keyfile)
+    first.append(crypto.sign_record(dsa, *first))
+    data = [first]
+    for i in xrange(n-1):
+        print i, i+1, len(points), points[i]
+        s = points[i]
+        e = points[i+1]-1
+        thissip, prevsip = prevsip, thissip
+        thisdate, prevdate = prevdate, thisdate
+        r = ['+%s'%s, '+%s'%e, thissip, owner, thisdate]
+        r.append(crypto.sign_record(dsa, *r))
+        data.append(r)
+    return data
+
+def writecsv(data, ofile):
+    out = csv.writer(ofile)
+    for r in data:
+        out.writerow(r)
 
 
 class TestRepo(object):

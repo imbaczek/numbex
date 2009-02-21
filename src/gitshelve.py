@@ -113,15 +113,16 @@ def git(cmd, *args, **kwargs):
         if kwargs.has_key('input'):
             proc.stdin.write(kwargs['input'])
             proc.stdin.close()
+        
 
         returncode = proc.wait()
         restart = False
         ignore_errors = 'ignore_errors' in kwargs and kwargs['ignore_errors']
-        if returncode != 0 and not ignore_errors:
+        if returncode != 0:
             if kwargs.has_key('restart'):
                 if kwargs['restart'](cmd, args, kwargs):
                     restart = True
-            else:
+            elif not ignore_errors:
                 raise GitError(cmd, args, kwargs, proc.stderr.read())
 
     if not kwargs.has_key('ignore_output'):
@@ -209,7 +210,10 @@ class gitshelve(dict):
         return apply(git, args, kwargs)
 
     def current_head(self):
-        return self.git('rev-parse', self.branch)
+        x = self.git('rev-parse', self.branch)
+        if len(x) != 40:
+            raise ValueError("rev-parse went insane: %s"%x)
+        return x
 
     def update_head(self, new_head):
         if self.head:
@@ -314,7 +318,6 @@ class gitshelve(dict):
                 tree_name = self.make_tree(obj, comment_accumulator)
                 if tree_name != tree_root:
                     root = None
-
                 buf.write("040000 tree %s\t%s\0" % (tree_name, path))
 
         if root is None:
@@ -348,6 +351,7 @@ class gitshelve(dict):
         tree = self.make_tree(self.objects, accumulator)
         if accumulator:
             comment = accumulator.getvalue()
+        old_head = self.head
         name = self.make_commit(tree, comment)
 
         self.dirty = False
@@ -355,6 +359,10 @@ class gitshelve(dict):
 
     def sync(self):
         self.commit()
+
+    def get_parent_ids(self):
+        r = self.git('rev-list', '--parents', '--max-count=1', self.branch)
+        return r.split()[1:]
 
     def close(self):
         if self.dirty:
@@ -451,10 +459,17 @@ class gitshelve(dict):
             left = self.prune_tree(objects[paths[0]], paths[1:])
             # do not delete if there's something left besides __root__ and
             # paths[0]
-            if left > 1 or len(objects[paths[0]]) > 2:
+            has_root = '__root__' in objects[paths[0]]
+            if left > 0 or len(objects[paths[0]]) > int(has_root):
+                if '__root__' in objects:
+                    del objects['__root__']
+                for tree in objects:
+                    if '__root__' in objects[tree]:
+                        del objects[tree]['__root__']
                 return 3
         l = len(objects[paths[0]])
         del objects[paths[0]]
+        self.dirty = True
         return l-1
 
     def __delitem__(self, path):
