@@ -99,6 +99,8 @@ Signature: $sig''')
                     for key in keycache[owner]):
                 self.log.warning("invalid signature %s", row)
                 return False
+            else:
+                self.log.debug("signature valid for %s", row)
 
         shelf = self.shelf
         if delete is not None:
@@ -109,6 +111,7 @@ Signature: $sig''')
             start, end, sip, owner, mdate, rsasig = r
             num = self.make_repo_path(start)
             newrec = self.make_record(start, end, sip, owner, mdate, rsasig)
+            self.log.debug("inserting %s", r)
             # 'key in shelf' doesn't seem to work
             try:
                 oldrec = shelf[num]
@@ -117,7 +120,9 @@ Signature: $sig''')
             else:
                 if oldrec != newrec:
                     shelf[num] = newrec
+        self.log.debug("syncing repository, this may take a while")
         self.sync()
+        self.log.debug("checking for overlaps")
         overlaps = self.check_overlaps()
         if overlaps:
             self.log.warning("import resulted in overlapping ranges, rolling back")

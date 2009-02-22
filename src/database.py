@@ -13,7 +13,6 @@ class Database(object):
     def __init__(self, filename, logger=None, fill_example=None):
         if logger is None:
             self.log = logging.getLogger('database')
-            self.log.setLevel(logging.INFO)
         else:
             self.log = logger
 
@@ -311,64 +310,72 @@ W7d77Yq4f2BRkGFp/2Jz
             prevs, preve = s, e
         num2str = self._numeric2string
         now = datetime.now()
-        for row in data:
-            ns, ne = int(row[0]), int(row[1])
-            self.log.info('processing [%s]', ', '.join(map(str, row)))
-            # empty sip address means "delete this range"
-            do_insert = (row[2] != "")
-            overlaps = self.overlapping_ranges(int(row[0]), int(row[1]))
-            for ovl in overlaps:
-                os, oe = int(ovl[0]), int(ovl[1])
-                # special case: new == old; update DSA signature
-                # set signature to '' otherwise
-                if os == ns and oe == ne:
-                    old = list(self._get_range(cursor, ovl[0]))
-                    if not do_insert:
-                        self.log.info('deleting %s %s', ovl[0], ovl[1])
+        try:
+            for row in data:
+                ns, ne = int(row[0]), int(row[1])
+                self.log.debug('processing [%s]', ', '.join(map(str, row)))
+                # empty sip address means "delete this range"
+                do_insert = (row[2] != "")
+                overlaps = self.overlapping_ranges(int(row[0]), int(row[1]))
+                for ovl in overlaps:
+                    os, oe = int(ovl[0]), int(ovl[1])
+                    # special case: new == old; update DSA signature
+                    # set signature to '' otherwise
+                    if os == ns and oe == ne:
+                        old = list(self._get_range(cursor, ovl[0]))
+                        for i,e in enumerate(old):
+                            if isinstance(e, unicode):
+                                old[i] = e.decode('utf-8')
+                        if not do_insert:
+                            self.log.debug('deleting %s %s', ovl[0], ovl[1])
+                            self.delete_range(cursor, ovl[0])
+                            self._add_change(cursor, ovl[0], ovl[1], 'D')
+                        elif old == row:
+                            self.log.debug('nothing to do for %s %s', ovl[0], ovl[1])
+                        elif old[:-1] == row[:-1]:
+                            self.log.debug('full equal, update sig %s %s',
+                                    ovl[0], ovl[1])
+                            self.set_range_small(cursor, ovl[0], ovl[0], ovl[1],
+                                    row[4], row[5])
+                            self._add_change(cursor, ovl[0], ovl[1], 'M')
+                        else:
+                            self.log.debug('equal ovl %s %s', ovl[0], ovl[1])
+                            self.set_range(cursor, ovl[0], *row)
+                            self._add_change(cursor, ovl[0], ovl[1], 'M')
+                        do_insert = False
+                    elif os >= ns and os <= ne and oe > ne: # left overlap
+                        self.log.debug('left ovl %s %s',ovl[0],ovl[1])
+                        self.set_range_small(cursor, ovl[0], num2str(ne+1), ovl[1], now)
+                        self._add_change(cursor, ovl[0], ovl[1], 'D')
+                        self._add_change(cursor, num2str(ne+1), ovl[1], 'A')
+                    elif oe >= ns and oe <= ne and os < ns: # right overlap
+                        self.log.debug('right ovl %s %s',ovl[0],ovl[1])
+                        self.set_range_small(cursor, ovl[0], ovl[0], num2str(ns-1), now)
+                        self._add_change(cursor, ovl[0], ovl[1], 'M')
+                    elif os >= ns and oe <= ne: # complete overlap, old is smaller
+                        self.log.debug('old smaller ovl %s %s',ovl[0],ovl[1])
                         self.delete_range(cursor, ovl[0])
                         self._add_change(cursor, ovl[0], ovl[1], 'D')
-                    elif old == row:
-                        self.log.info('nothing to do for %s %s', ovl[0], ovl[1])
-                    elif old[:-1] == row[:-1]:
-                        self.log.info('full equal, update sig %s %s',
-                                ovl[0], ovl[1])
-                        self.set_range_small(cursor, ovl[0], ovl[0], ovl[1],
-                                row[4], row[5])
+                    elif os <= ns and oe >= ne: # complete overlap, new is smaller
+                        self.log.debug('new smaller ovl %s %s',ovl[0],ovl[1])
+                        old = self._get_range(cursor, ovl[0])
+                        self.set_range_small(cursor, ovl[0], ovl[0], num2str(ns-1), now)
+                        self.insert_range(cursor, num2str(ne+1), ovl[1],
+                                old[2], old[3], now, '', safe=True)
                         self._add_change(cursor, ovl[0], ovl[1], 'M')
-                    else:
-                        self.log.info('equal ovl %s %s', ovl[0], ovl[1])
-                        self.set_range(cursor, ovl[0], *row)
-                        self._add_change(cursor, ovl[0], ovl[1], 'M')
-                    do_insert = False
-                elif os >= ns and os <= ne and oe > ne: # left overlap
-                    self.log.info('left ovl %s %s',ovl[0],ovl[1])
-                    self.set_range_small(cursor, ovl[0], num2str(ne+1), ovl[1], now)
-                    self._add_change(cursor, ovl[0], ovl[1], 'D')
-                    self._add_change(cursor, num2str(ne+1), ovl[1], 'A')
-                elif oe >= ns and oe <= ne and os < ns: # right overlap
-                    self.log.info('right ovl %s %s',ovl[0],ovl[1])
-                    self.set_range_small(cursor, ovl[0], ovl[0], num2str(ns-1), now)
-                    self._add_change(cursor, ovl[0], ovl[1], 'M')
-                elif os >= ns and oe <= ne: # complete overlap, old is smaller
-                    self.log.info('old smaller ovl %s %s',ovl[0],ovl[1])
-                    self.delete_range(cursor, ovl[0])
-                    self._add_change(cursor, ovl[0], ovl[1], 'D')
-                elif os <= ns and oe >= ne: # complete overlap, new is smaller
-                    self.log.info('new smaller ovl %s %s',ovl[0],ovl[1])
-                    old = self._get_range(cursor, ovl[0])
-                    self.set_range_small(cursor, ovl[0], ovl[0], num2str(ns-1), now)
-                    self.insert_range(cursor, num2str(ne+1), ovl[1],
-                            old[2], old[3], now, '', safe=True)
-                    self._add_change(cursor, ovl[0], ovl[1], 'M')
-                    self._add_change(cursor, num2str(ne+1), ovl[1], 'A')
-            if do_insert:
-                row = list(row)
-                self.insert_range(cursor, safe=True, *row)
-                self._add_change(cursor, row[0], row[1], 'A')
+                        self._add_change(cursor, num2str(ne+1), ovl[1], 'A')
+                if do_insert:
+                    row = list(row)
+                    self.insert_range(cursor, safe=True, *row)
+                    self._add_change(cursor, row[0], row[1], 'A')
+        except:
+            self.conn.rollback()
+            self.log.exception("update data failed after %.3fs", endtime-starttime)
+            raise
         cursor.close()
         self.conn.commit()
         endtime = time.clock()
-        self.log.info("update data complete, %.3f s", endtime-starttime)
+        self.log.info("update data complete, %.3fs", endtime-starttime)
         return True
 
     def overlapping_ranges(self, start, end):
@@ -423,7 +430,7 @@ W7d77Yq4f2BRkGFp/2Jz
         ns = int(newstart)
         ne = int(newend)
         date_changed = utils.parse_datetime_iso(date_changed)
-        self.log.info('set small %s => %s %s',start,newstart,newend)
+        self.log.debug('set small %s => %s %s',start,newstart,newend)
         assert ns <= ne
         assert isinstance(date_changed, datetime)
         cursor.execute('''update numbex_ranges
@@ -436,7 +443,7 @@ W7d77Yq4f2BRkGFp/2Jz
     def set_range(self, cursor, start, newstart, newend, sip, owner, date_changed, sig):
         ns = int(newstart)
         ne = int(newend)
-        self.log.info('set full %s => %s %s',start,newstart,newend)
+        self.log.debug('set full %s => %s %s',start,newstart,newend)
         date_changed = utils.parse_datetime_iso(date_changed)
         assert ns <= ne
         assert isinstance(date_changed, datetime)
@@ -456,7 +463,7 @@ W7d77Yq4f2BRkGFp/2Jz
         if safe and ovl:
             raise ValueError("cannot insert range %s-%s: overlaps with %s"%
                 (start, end, str(ovl)))
-        self.log.info('insert %s %s',start,end)
+        self.log.debug('insert %s %s',start,end)
         assert ns <= ne
         assert isinstance(date_changed, datetime)
         cursor.execute('''insert into numbex_ranges
@@ -466,7 +473,7 @@ W7d77Yq4f2BRkGFp/2Jz
         return True
 
     def delete_range(self, cursor, start):
-        self.log.info('delete %s',start)
+        self.log.debug('delete %s',start)
         cursor.execute('''delete from numbex_ranges
                 where start = ?''',
                 [start])

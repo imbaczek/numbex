@@ -112,7 +112,7 @@ updater-stop \tstops the updater thread
         'updater-stop': ctl.updater_stop,
         'updater-start': ctl.updater_start,
         'status':     ctl.status,
-        'clearerrors': ctrl.clear_errors,
+        'clearerrors': ctl.clear_errors,
     }
 
     if len(args) >= 1 and args[0] in dispatch:
