@@ -353,7 +353,6 @@ class gitshelve(dict):
         tree = self.make_tree(self.objects, accumulator)
         if accumulator:
             comment = accumulator.getvalue()
-        old_head = self.head
         name = self.make_commit(tree, comment)
 
         self.dirty = False
