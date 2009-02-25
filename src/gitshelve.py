@@ -125,7 +125,10 @@ def git(cmd, *args, **kwargs):
                 if kwargs['restart'](cmd, args, kwargs):
                     restart = True
             elif not ignore_errors:
-                raise GitError(cmd, args, kwargs, err)
+                if err.strip():
+                    raise GitError(cmd, args, kwargs, err)
+                else:
+                    raise GitError(cmd, args, kwargs, out)
 
     if not kwargs.has_key('ignore_output'):
         if kwargs.has_key('keep_newline'):
