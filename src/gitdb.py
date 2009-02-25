@@ -57,13 +57,16 @@ Range-end: $rangeend
 Sip-address: $sip
 Owner: $owner
 Date-modified: $date_modified
-Signature: $sig''')
+Signature: $sig\n''')
         return tmpl.substitute(locals())
 
     def parse_record(self, txtrec):
         '''returned data format:
 [rangestart, rangeend, sip, owner, date_modified, rsa_signature]'''
         d = {}
+        #assert '\0' not in txtrec
+        # dziki bug w git 1.6?!?
+        txtrec = txtrec.replace('\0', '')
         for line in txtrec.splitlines():
             pre, post = line.split(':', 1)
             pre = pre.lower().strip()
@@ -157,12 +160,15 @@ Signature: $sig''')
     def check_overlaps(self):
         data = self.export_data_all()
         it = iter(data)
-        first = it.next()
-        ivaltree = quicksect.IntervalNode(
-                quicksect.Feature(int(first[0]), int(first[1])))
-        for e in it:
-            ivaltree = ivaltree.insert(quicksect.Feature(
-                    int(e[0]), int(e[1])))
+        try:
+            first = it.next()
+            ivaltree = quicksect.IntervalNode(
+                    quicksect.Feature(int(first[0]), int(first[1])))
+            for e in it:
+                ivaltree = ivaltree.insert(quicksect.Feature(
+                        int(e[0]), int(e[1])))
+        except StopIteration:
+            return {}
         bad = {}
         for e in data:
             overlaps = ivaltree.find(int(e[0]), int(e[1]))
