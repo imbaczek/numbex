@@ -120,7 +120,8 @@ class NumbexDaemon(object):
         self.log.info("starting update processor")
         # need our own database connection here
         # and our own git, too, since it needs public keys
-        db = Database(os.path.expanduser(self.cfg.get('DATABASE', 'path')))
+        db = Database(os.path.expanduser(self.cfg.get('DATABASE', 'path')),
+                fill_example=False)
         git = NumbexRepo(os.path.expanduser(self.cfg.get('GIT', 'path')),
                 db.get_public_keys)
         self.updater_worker_stopped = False
@@ -336,7 +337,8 @@ class NumbexDaemon(object):
 
     def _startup(self):
         gitpath = os.path.expanduser(self.cfg.get('GIT', 'path'))
-        self.db = Database(os.path.expanduser(self.cfg.get('DATABASE', 'path')))
+        self.db = Database(os.path.expanduser(self.cfg.get('DATABASE', 'path')),
+                fill_example=False)
         self.git = NumbexRepo(os.path.expanduser(self.cfg.get('GIT', 'path')),
                 self.db.get_public_keys)
         if self.db.ranges_empty():
