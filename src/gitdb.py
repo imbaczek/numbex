@@ -365,8 +365,9 @@ Signature: $sig\n''')
             gitshelve.git('fetch', 'origin', repository=tmprepo)
 
             # prepare to merge
-            gitshelve.git('checkout', '-b', self.repobranch,
-                    'origin/'+self.repobranch, repository=tmprepo,
+            gitshelve.git('branch', self.repobranch, 'origin/'+self.repobranch,
+                    repository=tmprepo, worktree=tmpdir)
+            gitshelve.git('checkout',self.repobranch, repository=tmprepo,
                     worktree=tmpdir)
 
             # check if there aren't any overlaps before the merge
