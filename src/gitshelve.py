@@ -115,6 +115,8 @@ def git(cmd, *args, **kwargs):
         else:
             input = ''
        
+        if isinstance(input, unicode):
+            input = input.encode('utf-8')
         out, err = proc.communicate(input) 
 
         returncode = proc.returncode
